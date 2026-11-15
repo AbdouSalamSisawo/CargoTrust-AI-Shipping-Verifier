@@ -31,9 +31,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       body: email.body,
       attachments: email.attachments.map((a) => a.path),
     };
-    const texts: Record<string, string | null> = {};
-    for (const p of rec.attachments) texts[p] = (await readAttachment(p)).text;
-    const fresh = processEmail(rec, texts);
+    const reads: Record<string, Awaited<ReturnType<typeof readAttachment>>> = {};
+    for (const p of rec.attachments) reads[p] = await readAttachment(p);
+    const fresh = processEmail(rec, reads);
     fresh.seq = email.seq;
     db.emails[email.id] = fresh;
 
