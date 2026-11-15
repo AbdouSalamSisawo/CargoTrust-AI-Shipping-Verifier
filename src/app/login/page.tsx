@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cx } from '@/lib/utils';
 import { PRODUCT } from '@/data/taxonomy';
-import { Icon, Logo, GoogleG } from '@/components/icons';
+import { Icon, Logo } from '@/components/icons';
 import { TextField, M } from '@/components/ui';
 
 function LoginInner() {
@@ -12,17 +12,21 @@ function LoginInner() {
   const sp = useSearchParams();
   const next = sp.get('next') || '/dashboard';
 
-  const [form, setForm] = useState({ user: '', pass: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [show, setShow] = useState(false);
-  const [state, setState] = useState<'idle' | 'error' | 'loading' | 'gloading' | 'success'>('idle');
+  const [state, setState] = useState<'idle' | 'error' | 'loading' | 'success'>('idle');
   const [err, setErr] = useState('');
 
-  const busy = state === 'loading' || state === 'gloading' || state === 'success';
+  const busy = state === 'loading' || state === 'success';
 
-  const go = () => router.push(next);
+  // only same-site paths: never redirect to another origin after sign-in
+  const go = () => {
+    router.push(next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
+    router.refresh();
+  };
 
-  const signIn = async (payload: { user: string; pass: string }, g = false) => {
-    setState(g ? 'gloading' : 'loading');
+  const signIn = async (payload: { email: string; password: string }) => {
+    setState('loading');
     try {
       const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const d = await r.json();
@@ -32,11 +36,7 @@ function LoginInner() {
         return;
       }
       setState('success');
-      try {
-        // Primary session marker for preview proxies/frames that block cookies.
-        window.localStorage.setItem('cargotrust_auth', '1');
-      } catch { /* storage unavailable — cookie may still work */ }
-      setTimeout(go, 650);
+      setTimeout(go, 450);
     } catch {
       setState('error');
       setErr('Network error — is the server running?');
@@ -46,12 +46,12 @@ function LoginInner() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (!form.user.trim() || !form.pass) {
+    if (!form.email.trim() || !form.password) {
       setState('error');
-      setErr('Please enter both username and password.');
+      setErr('Please enter your email and password.');
       return;
     }
-    void signIn({ user: form.user.trim(), pass: form.pass });
+    void signIn({ email: form.email.trim(), password: form.password });
   };
 
   const particles = useMemo(
@@ -111,7 +111,7 @@ function LoginInner() {
             <M from={{ opacity: 0, y: 22 }} to={{ opacity: 1, y: 0 }} delay={0.25}>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 backdrop-blur px-3.5 py-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-aqua-300 animate-pulseDot"/>
-                <span className="text-[11px] font-bold tracking-wide text-aqua-300 uppercase">SDOC Hackathon · Shipping Document Verification</span>
+                <span className="text-[11px] font-bold tracking-wide text-aqua-300 uppercase">Shipping document verification</span>
               </div>
             </M>
             <M from={{ opacity: 0, y: 22 }} to={{ opacity: 1, y: 0 }} delay={0.4}>
@@ -123,8 +123,8 @@ function LoginInner() {
             </M>
             <M from={{ opacity: 0, y: 22 }} to={{ opacity: 1, y: 0 }} delay={0.55}>
               <p className="text-white/60 text-[15px] leading-relaxed mt-4 max-w-lg">
-                The engine reads your inbox, classifies every email, extracts SI &amp; BL shipment fields, and catches
-                discrepancies before a draft Bill of Lading is finalized.
+                Reads customer emails and documents — PDF, Word, Excel, scans and phone photos — compares every
+                Shipping Instruction with its draft Bill of Lading, and catches discrepancies before the BL is issued.
               </p>
             </M>
             <M from={{ opacity: 0, y: 22 }} to={{ opacity: 1, y: 0 }} delay={0.7}>
@@ -146,7 +146,7 @@ function LoginInner() {
           <M from={{ opacity: 0 }} to={{ opacity: 1 }} delay={0.9}>
             <div className="border-t border-white/10 pt-6">
               <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
-                {[['520', 'emails in dataset'], ['7', 'fields checked per BL'], ['3', 'decisions: OK · Mismatch · Review']].map(([v, l]) => (
+                {[['7', 'critical fields checked per BL'], ['100%', 'decisions with source evidence'], ['3', 'outcomes: OK · Mismatch · Review']].map(([v, l]) => (
                   <div key={l}>
                     <div className="font-display text-2xl font-bold text-white">{v}</div>
                     <div className="text-[11px] text-white/50 mt-0.5">{l}</div>
@@ -170,22 +170,23 @@ function LoginInner() {
 
           <form onSubmit={submit} className={cx('mt-8 space-y-4', state === 'error' && 'animate-shakeX')} noValidate>
             <div>
-              <label className="text-[12px] font-bold text-ink-700 uppercase tracking-wide" htmlFor="li-user">Username</label>
+              <label className="text-[12px] font-bold text-ink-700 uppercase tracking-wide" htmlFor="li-user">Email</label>
               <div className="mt-1.5">
                 <TextField
                   id="li-user"
                   icon={<Icon name="user" size={16}/>}
-                  placeholder="ops.manager@cargotrust.ai"
+                  type="email"
+                  placeholder="you@company.com"
                   autoComplete="username"
-                  value={form.user}
-                  onChange={(e) => setForm({ ...form, user: e.target.value })}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-[12px] font-bold text-ink-700 uppercase tracking-wide" htmlFor="li-pass">Password</label>
-                <button type="button" className="text-[11.5px] font-semibold text-brand-500 hover:text-brand-600">Forgot?</button>
+                <span className="text-[11px] text-slate-400" title="Administrators can reset passwords under Settings → Team">Forgot? Ask your administrator</span>
               </div>
               <div className="mt-1.5">
                 <TextField
@@ -194,8 +195,8 @@ function LoginInner() {
                   icon={<Icon name="lock" size={16}/>}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  value={form.pass}
-                  onChange={(e) => setForm({ ...form, pass: e.target.value })}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
                   trailing={
                     <button
                       type="button"
@@ -222,30 +223,13 @@ function LoginInner() {
             </button>
           </form>
 
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"/></div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-slate-400">or continue with</span>
-            </div>
-          </div>
-          <button type="button" onClick={() => void signIn({ user: 'google-demo', pass: 'google-demo' }, true)} disabled={busy} className="btn-ghost w-full py-3 text-[15px]">
-            {state === 'gloading' && <><Icon name="loader" size={16} className="animate-spin"/>Connecting to Google…</>}
-            {state === 'success' && <><Icon name="checkCircle" size={16}/>Access granted</>}
-            {(state === 'idle' || state === 'error' || state === 'loading') && <><GoogleG size={18}/>Continue with Google</>}
-          </button>
-
           <div className="mt-7 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">
             <span className="h-px flex-1 bg-slate-200"/>Secure enterprise access<span className="h-px flex-1 bg-slate-200"/>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11.5px] font-semibold text-slate-400">
-            <span className="inline-flex items-center gap-1.5"><Icon name="lock" size={13} className="text-emerald-500"/>SSO Ready</span>
-            <span className="inline-flex items-center gap-1.5"><Icon name="shieldCheck" size={13} className="text-brand-500"/>Audit Trail</span>
-            <span className="inline-flex items-center gap-1.5"><Icon name="wifi" size={13} className="text-ai-500"/>24/7 Monitoring</span>
-          </div>
-          <div className="mt-6 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-50 border border-navy-100 px-3 py-1.5 text-[11px] font-semibold text-navy-600">
-              <Icon name="info" size={12} className="shrink-0"/>Demo build — any credentials or Google sign-in works
-            </span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="lock" size={13} className="text-emerald-500"/>Encrypted passwords</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="shieldCheck" size={13} className="text-brand-500"/>Audit trail</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="users" size={13} className="text-ai-500"/>Role-based access</span>
           </div>
         </M>
       </div>
