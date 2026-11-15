@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession, can } from '@/components/shell';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { DashboardMetrics } from '@/lib/metrics';
@@ -106,6 +107,7 @@ function PipelineFlow({ stages }: { stages: DashboardMetrics['pipeline'] }) {
 
 export default function DashboardPage() {
   const toast = useToast();
+  const { user } = useSession();
   const [m, setM] = useState<DashboardMetrics | null>(null);
   const [dateStr, setDateStr] = useState('');
 
@@ -148,14 +150,14 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Mission Control</h1>
+          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Dashboard</h1>
           <p className="text-sm text-slate-400 mt-1">{dateStr || '\u00A0'} · Verification overview across the processed inbox</p>
         </div>
         <div className="flex items-center gap-2.5">
-          <button className="btn-ghost" onClick={() => toast('Report export queued', 'A snapshot of the current metrics will download shortly.', 'info')}>
-            <Icon name="download" size={15}/>Export
-          </button>
-          <Link href="/api/submission" prefetch={false} className="btn-primary"><Icon name="upload" size={15}/>Generate submission</Link>
+          <a href="/api/export" className="btn-ghost">
+            <Icon name="download" size={15}/>Export CSV
+          </a>
+          {can(user, 'operator') && <Link href="/new" className="btn-primary"><Icon name="upload" size={15}/>New check</Link>}
         </div>
       </div>
 
