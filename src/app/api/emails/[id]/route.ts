@@ -24,7 +24,7 @@ export const POST = guarded('operator', async (user, _req: NextRequest, { params
   const email = db.emails[params.id];
   if (!email) return NextResponse.json({ ok: false, error: 'Email not found' }, { status: 404 });
   if (email.reviewed?.action === 'correct') {
-    return NextResponse.json({ ok: false, error: 'A reviewer corrected this item by hand — re-running would discard the correction.' }, { status: 409 });
+    return NextResponse.json({ ok: false, error: 'A reviewer corrected this item by hand. Running the check again would discard the correction.' }, { status: 409 });
   }
   const fresh = await runPipeline(recordOf(email), db.settings);
   fresh.source = email.source;

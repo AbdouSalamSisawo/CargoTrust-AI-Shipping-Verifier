@@ -11,15 +11,15 @@ function ScoreBar({ label, value, color, hint }: { label: string; value: number;
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[12px] font-bold text-ink-700">{label}</span>
-        <span className="text-[12.5px] font-bold tabular-nums" style={{ color }}>{(value * 100).toFixed(1)}%</span>
+        <span className="text-[12px] font-semibold text-ink-700">{label}</span>
+        <span className="text-[12.5px] font-semibold tabular-nums" style={{ color }}>{(value * 100).toFixed(1)}%</span>
       </div>
       <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
         <M from={{ width: 0 }} to={{ width: `${value * 100}%` }} dur={0.9} delay={0.2} className="h-full rounded-full" >
           <div className="h-full rounded-full" style={{ background: color }}/>
         </M>
       </div>
-      <div className="text-[11px] text-slate-400 mt-1">{hint}</div>
+      <div className="text-[11px] text-ink-400 mt-1">{hint}</div>
     </div>
   );
 }
@@ -27,10 +27,10 @@ function ScoreBar({ label, value, color, hint }: { label: string; value: number;
 function Tile({ label, value, sub, tone = 'brand' }: { label: string; value: string; sub?: string; tone?: 'brand' | 'good' | 'warn' }) {
   const c = tone === 'good' ? 'text-emerald-600' : tone === 'warn' ? 'text-amber-600' : 'text-brand-600';
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-3">
-      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
-      <div className={cx('font-display text-[22px] font-bold tabular-nums leading-tight mt-0.5', c)}>{value}</div>
-      {sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}
+    <div className="rounded-md border border-line bg-slate-50/60 px-3.5 py-3">
+      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-400">{label}</div>
+      <div className={cx('text-[22px] font-semibold tabular-nums leading-tight mt-0.5', c)}>{value}</div>
+      {sub && <div className="text-[11px] text-ink-400 mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -39,8 +39,8 @@ function RobustnessCard({ r }: { r: RobustnessReport }) {
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   return (
     <M from={{ opacity: 0, transform: 'translateY(16px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5">
-      <h3 className="font-bold text-[15px] text-navy-900 flex items-center gap-2"><Icon name="shuffle" size={15} className="text-ai-500"/>Mutation robustness benchmark</h3>
-      <p className="text-xs text-slate-400 mt-0.5 mb-4">
+      <h3 className="text-[14px] font-semibold text-ink-900 flex items-center gap-2"><Icon name="shuffle" size={15} className="text-ai-500"/>Mutation robustness benchmark</h3>
+      <p className="text-xs text-ink-400 mt-0.5 mb-4">
         Every clean SI/BL pair ({r.pairs}) rewritten {r.benign.total + r.defect.total} ways the engine never saw: benign rewrites must stay OK,
         planted defects must be flagged on exactly the planted field. Evidence the rules generalise beyond the 520 emails.
       </p>
@@ -53,9 +53,9 @@ function RobustnessCard({ r }: { r: RobustnessReport }) {
       <div className="mt-4 grid md:grid-cols-2 gap-x-6 gap-y-1.5">
         {r.perMutation.map((m) => (
           <div key={m.id} className="flex items-center gap-2 text-[11.5px]">
-            <span className={cx('w-12 shrink-0 text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 text-center', m.kind === 'benign' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>{m.kind}</span>
-            <span className="flex-1 text-slate-500 truncate" title={m.label}>{m.label}</span>
-            <span className={cx('font-bold tabular-nums', m.passed === m.total ? 'text-emerald-600' : 'text-amber-600')}>{m.passed}/{m.total}</span>
+            <span className={cx('w-12 shrink-0 text-[9.5px] font-semibold uppercase tracking-wider rounded px-1 py-0.5 text-center', m.kind === 'benign' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>{m.kind}</span>
+            <span className="flex-1 text-ink-500 truncate" title={m.label}>{m.label}</span>
+            <span className={cx('font-semibold tabular-nums', m.passed === m.total ? 'text-emerald-600' : 'text-amber-600')}>{m.passed}/{m.total}</span>
           </div>
         ))}
       </div>
@@ -122,8 +122,8 @@ export default function EvaluationPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Quality</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="page-title">Quality</h1>
+          <p className="page-sub">
             Three independent checks: a labeled self-test suite, a mutation robustness benchmark on rewritten documents,
             and the independent benchmark record.
           </p>
@@ -154,30 +154,30 @@ export default function EvaluationPage() {
             <M from={{ opacity: 0, transform: 'translateY(20px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5 relative overflow-hidden" >
               <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(140deg,#F5F3FF 0%,#fff 55%)' }}/>
               <div className="relative">
-                <h3 className="font-bold text-[15px] text-navy-900">End-to-end correctness</h3>
-                <p className="text-xs text-slate-400 mt-0.5 mb-4">Category + status + exact defect fields, all correct</p>
+                <h3 className="text-[14px] font-semibold text-ink-900">End-to-end correctness</h3>
+                <p className="text-xs text-ink-400 mt-0.5 mb-4">Category + status + exact defect fields, all correct</p>
                 <div className="flex justify-center">
                   <Ring value={latest.endToEnd.total ? (latest.endToEnd.correct / latest.endToEnd.total) * 100 : 0} size={172} thickness={14} from="#8B5CF6" to="#2563EB" track="rgba(139,92,246,.12)" delay={300}>
                     {(v) => (
                       <>
-                        <div className="font-display text-[34px] font-bold text-navy-900 leading-none tabular-nums">{v.toFixed(1)}<span className="text-[18px] text-slate-400">%</span></div>
-                        <div className="text-[11px] text-slate-400 mt-1">{latest.endToEnd.correct}/{latest.endToEnd.total} cases</div>
+                        <div className="text-[34px] font-semibold text-ink-900 leading-none tabular-nums">{v.toFixed(1)}<span className="text-[18px] text-ink-400">%</span></div>
+                        <div className="text-[11px] text-ink-400 mt-1">{latest.endToEnd.correct}/{latest.endToEnd.total} cases</div>
                       </>
                     )}
                   </Ring>
                 </div>
-                <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-[11.5px] text-slate-500">
+                <div className="mt-4 rounded-md bg-slate-50 border border-line px-3.5 py-2.5 text-[11.5px] text-ink-500">
                   Run {new Date(latest.at).toLocaleString()} · {latest.total} labeled cases
                 </div>
               </div>
             </M>
 
             <M from={{ opacity: 0, transform: 'translateY(20px)' }} to={{ opacity: 1, transform: 'none' }} delay={0.1} className="card p-5 xl:col-span-2">
-              <h3 className="font-bold text-[15px] text-navy-900">Capability scores</h3>
-              <p className="text-xs text-slate-400 mt-0.5 mb-5">Weighted in the official scoring: 50% end-to-end · 30% stage-1 macro-F1 · 20% defect-F1</p>
+              <h3 className="text-[14px] font-semibold text-ink-900">Capability scores</h3>
+              <p className="text-xs text-ink-400 mt-0.5 mb-5">Weighted in the official scoring: 50% end-to-end · 30% stage-1 macro-F1 · 20% defect-F1</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                 <ScoreBar label="Classification accuracy" value={latest.classification.accuracy} color="#2563EB" hint={`${latest.classification.correct}/${latest.total} emails routed to the right category`}/>
-                <ScoreBar label="Decision accuracy" value={latest.decision.accuracy} color="#10B981" hint={`MISMATCH vs not — precision ${(latest.decision.precision * 100).toFixed(0)}% · recall ${(latest.decision.recall * 100).toFixed(0)}%`}/>
+                <ScoreBar label="Decision accuracy" value={latest.decision.accuracy} color="#10B981" hint={`Discrepancy or not: precision ${(latest.decision.precision * 100).toFixed(0)}% · recall ${(latest.decision.recall * 100).toFixed(0)}%`}/>
                 <ScoreBar label="Defect detection F1" value={latest.defect.f1} color="#EF4444" hint={`${latest.defect.tp} true · ${latest.defect.fp} false · ${latest.defect.fn} missed field-level`}/>
                 <ScoreBar
                   label="Escalation reliability"
@@ -186,13 +186,13 @@ export default function EvaluationPage() {
                   hint={`${latest.escalation.correct}/${latest.escalation.total} escalations correct · ${latest.escalation.falseAlarms} false alarms · ${latest.escalation.missed} missed`}
                 />
               </div>
-              <div className="mt-6 pt-5 border-t border-slate-100">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Per-category classification</div>
+              <div className="mt-6 pt-5 border-t border-line">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400 mb-2.5">Per-category classification</div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
                   {latest.classification.perCategory.map((c) => (
-                    <div key={c.cat} className={cx('rounded-xl border px-3 py-2.5', c.correct === c.total ? 'bg-emerald-50/60 border-emerald-100' : 'bg-red-50/60 border-red-100')}>
-                      <div className="text-[10.5px] font-bold text-slate-500 truncate">{c.cat.replace(/_/g, ' ')}</div>
-                      <div className={cx('text-[15px] font-display font-bold', c.correct === c.total ? 'text-emerald-600' : 'text-red-600')}>{c.correct}/{c.total}</div>
+                    <div key={c.cat} className={cx('rounded-md border px-3 py-2.5', c.correct === c.total ? 'bg-emerald-50/60 border-emerald-100' : 'bg-red-50/60 border-red-100')}>
+                      <div className="text-[10.5px] font-semibold text-ink-500 truncate">{c.cat.replace(/_/g, ' ')}</div>
+                      <div className={cx('text-[15px] font-semibold', c.correct === c.total ? 'text-emerald-600' : 'text-red-600')}>{c.correct}/{c.total}</div>
                     </div>
                   ))}
                 </div>
@@ -202,8 +202,8 @@ export default function EvaluationPage() {
 
           {history.length > 1 && (
             <M from={{ opacity: 0, transform: 'translateY(20px)' }} to={{ opacity: 1, transform: 'none' }} delay={0.15} className="card p-5">
-              <h3 className="font-bold text-[15px] text-navy-900">Runs over time</h3>
-              <p className="text-xs text-slate-400 mt-0.5 mb-3">Every self-test run is persisted — watch the engine improve as rules are tuned.</p>
+              <h3 className="text-[14px] font-semibold text-ink-900">Runs over time</h3>
+              <p className="text-xs text-ink-400 mt-0.5 mb-3">Every self-test run is kept, so the effect of rule changes can be compared over time.</p>
               <LineChart
                 labels={history.map((r, i) => `#${i + 1}`)}
                 series={[
@@ -220,8 +220,8 @@ export default function EvaluationPage() {
       {robust && <RobustnessCard r={robust}/>}
 
       <M from={{ opacity: 0, transform: 'translateY(16px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5">
-        <h3 className="font-bold text-[15px] text-navy-900 flex items-center gap-2"><Icon name="shieldCheck" size={15} className="text-emerald-500"/>Independent benchmark record</h3>
-        <p className="text-xs text-slate-400 mt-0.5 mb-4">
+        <h3 className="text-[14px] font-semibold text-ink-900 flex items-center gap-2"><Icon name="shieldCheck" size={15} className="text-emerald-500"/>Independent benchmark record</h3>
+        <p className="text-xs text-ink-400 mt-0.5 mb-4">
           Averis × Monash SDOC shipping-document benchmark (2026): 520 real-style emails graded by the organizers&apos; own scorer
           against a private answer key the engine never saw.
         </p>

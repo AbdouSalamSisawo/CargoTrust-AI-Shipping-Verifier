@@ -64,7 +64,7 @@ export const POST = guarded('operator', async (user, req: NextRequest, { params 
       if (stillMissing.size > 0) {
         email.status = 'NEEDS_REVIEW';
         email.reviewReason = 'missing_value';
-        email.summary = `Correction saved — still missing: ${[...stillMissing].map(fieldLabel).join(', ')}.`;
+        email.summary = `Correction saved. Still missing: ${[...stillMissing].map(fieldLabel).join(', ')}.`;
         kase.reason = 'missing_value';
         kase.editFields = [...stillMissing].map((f) => ({
           field: f,
@@ -83,12 +83,12 @@ export const POST = guarded('operator', async (user, req: NextRequest, { params 
       email.status = email.hasDefect ? 'MISMATCH' : 'OK';
       email.reviewReason = null;
       email.summary = email.hasDefect
-        ? `Reviewer-corrected — ${cmp.defectFields.length} of 7 fields differ: ${cmp.defectFields.map(fieldLabel).join(', ')}.`
-        : 'Reviewer confirmed the values — no mismatch detected.';
+        ? `Corrected by a reviewer: ${cmp.defectFields.length} of 7 fields differ: ${cmp.defectFields.map(fieldLabel).join(', ')}.`
+        : 'A reviewer confirmed the values. All 7 fields match.';
       email.reviewed = { action: 'correct', note: body.note, by: user.name, at: new Date().toISOString() };
       kase.status = 'resolved';
       kase.resolution = { action: 'correct', note: body.note, updatedStatus: email.status, by: user.name, at: new Date().toISOString() };
-      audit(db, user, 'review.corrected', email.id, `Resolved → ${email.status}${body.note ? ` — ${body.note}` : ''}`);
+      audit(db, user, 'review.corrected', email.id, `Resolved → ${email.status}${body.note ? `: ${body.note}` : ''}`);
       return { ok: true, status: email.status } as const;
     }
 

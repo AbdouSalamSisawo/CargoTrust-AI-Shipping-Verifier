@@ -20,8 +20,8 @@ export function DecisionTrace({ email, steps: given }: { email?: ProcessedEmail;
   const steps = given ?? (email ? buildTrace(email) : []);
   return (
     <div className="card p-5">
-      <h3 className="font-bold text-[14px] text-navy-900 mb-1 flex items-center gap-2"><Icon name="activity" size={15} className="text-brand-500"/>Decision trace</h3>
-      <p className="text-[11.5px] text-slate-400 mb-4">How the engine reached this result — every step is deterministic and auditable.</p>
+      <h3 className="text-[14px] font-semibold text-ink-900 mb-1 flex items-center gap-2"><Icon name="activity" size={15} className="text-brand-500"/>Decision trace</h3>
+      <p className="text-[11.5px] text-ink-400 mb-4">How the engine reached this result. Every step is rule-based and can be checked.</p>
       <ol className="relative space-y-4">
         {steps.map((s, i) => {
           const st = STEP_STYLE[s.state];
@@ -34,12 +34,12 @@ export function DecisionTrace({ email, steps: given }: { email?: ProcessedEmail;
                 {i < steps.length - 1 && <span className="w-px flex-1 bg-slate-200 mt-1"/>}
               </div>
               <div className="min-w-0 pb-1">
-                <div className="text-[12.5px] font-bold text-ink-800">{s.title}</div>
-                <div className="text-[11.5px] text-slate-500 mt-0.5">{s.detail}</div>
+                <div className="text-[12.5px] font-semibold text-ink-800">{s.title}</div>
+                <div className="text-[11.5px] text-ink-500 mt-0.5">{s.detail}</div>
                 {s.items && s.items.length > 0 && (
                   <ul className="mt-1.5 space-y-1">
                     {s.items.map((it) => (
-                      <li key={it} className="text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-100 rounded-md px-2 py-1 break-words">{it}</li>
+                      <li key={it} className="text-[11px] font-mono text-ink-500 bg-slate-50 border border-line rounded-md px-2 py-1 break-words">{it}</li>
                     ))}
                   </ul>
                 )}
@@ -69,17 +69,17 @@ export function ReplyDraft({ email, draft, organisation }: { email?: ProcessedEm
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="font-bold text-[14px] text-navy-900 flex items-center gap-2"><Icon name="send" size={15} className="text-brand-500"/>Draft reply · {d.purpose}</h3>
-          <p className="text-[11.5px] text-slate-400 mt-0.5">To {d.to} — generated from the comparison, never invented. Review before sending.</p>
+          <h3 className="text-[14px] font-semibold text-ink-900 flex items-center gap-2"><Icon name="send" size={15} className="text-brand-500"/>Draft reply · {d.purpose}</h3>
+          <p className="text-[11.5px] text-ink-400 mt-0.5">To {d.to}. Written from the comparison results only. Review it before sending.</p>
         </div>
         <div className="flex gap-1.5 shrink-0">
           <button onClick={copy} className="btn-ghost btn-sm"><Icon name="files" size={13}/>Copy</button>
           <a href={`mailto:${/@/.test(d.to) ? encodeURIComponent(d.to) : ''}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`} className="btn-primary btn-sm"><Icon name="send" size={13}/>Open in mail app</a>
         </div>
       </div>
-      <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-        <div className="text-[11.5px] font-bold text-slate-600 mb-2">Subject: {d.subject}</div>
-        <pre className="text-[11.5px] leading-relaxed text-slate-600 whitespace-pre-wrap font-mono">{d.body}</pre>
+      <div className="rounded-md border border-line bg-slate-50/60 p-3">
+        <div className="text-[11.5px] font-semibold text-ink-600 mb-2">Subject: {d.subject}</div>
+        <pre className="text-[11.5px] leading-relaxed text-ink-600 whitespace-pre-wrap font-mono">{d.body}</pre>
       </div>
     </div>
   );

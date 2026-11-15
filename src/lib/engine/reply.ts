@@ -33,7 +33,7 @@ export function draftReply(e: ProcessedEmail, organisation?: string): DraftReply
       to: e.from,
       subject,
       purpose: 'Confirmation',
-      body: `${greet(e.from)}\n\nWe have checked the draft BL against our Shipping Instruction: shipper, consignee, notify party, port of loading, port of discharge, container count and gross weight all match. The draft BL is confirmed — please proceed.${sign}`,
+      body: `${greet(e.from)}\n\nWe have checked the draft BL against our Shipping Instruction: shipper, consignee, notify party, port of loading, port of discharge, container count and gross weight all match. The draft BL can be confirmed; please proceed.${sign}`,
     };
   }
   // NEEDS_REVIEW

@@ -41,7 +41,7 @@ export async function ingestUpload(input: UploadInput, user: User): Promise<Proc
     const rec: EmailRecord = {
       email_id: id,
       from: input.from?.trim() || user.email,
-      subject: ref ? `Document check — ${ref}` : 'Document check — SI vs draft BL',
+      subject: ref ? `Document check: ${ref}` : 'Document check: SI and draft BL',
       body: 'Please check the attached Shipping Instruction against the draft Bill of Lading and revert with any discrepancy.',
       attachments,
       attachmentKinds: kinds,

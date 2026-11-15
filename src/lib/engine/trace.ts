@@ -37,7 +37,7 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
   });
 
   if (e.category !== 'BL_COMPARISON') {
-    steps.push({ key: 'route', title: 'Routed — no document check needed', state: 'skip', detail: e.summary });
+    steps.push({ key: 'route', title: 'Routed: no document check needed', state: 'skip', detail: e.summary });
     return steps;
   }
 
@@ -56,7 +56,7 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
     key: 'locate',
     title: 'SI and draft BL located',
     state: 'pass',
-    detail: `${si?.name ?? '—'} (reference) and ${bl?.name ?? '—'}.`,
+    detail: `${si?.name ?? 'Not found'} (reference) and ${bl?.name ?? 'Not found'}.`,
     items: e.notes,
   });
 
@@ -64,7 +64,7 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
     .filter((a) => a.kind !== 'other')
     .map((a) => {
       const how = a.ai && !a.ai.error ? `${METHOD_LABEL[a.method ?? 'text'] ?? a.method} + AI vision (${a.ai.model})` : METHOD_LABEL[a.method ?? 'text'] ?? a.method;
-      return `${a.kind}: ${how}${a.ocrConfidence != null ? ` (OCR confidence ${a.ocrConfidence}%)` : ''}${a.error ? ` — ${a.error}` : ''}`;
+      return `${a.kind}: ${how}${a.ocrConfidence != null ? ` (OCR confidence ${a.ocrConfidence}%)` : ''}${a.error ? `: ${a.error}` : ''}`;
     });
   const unreadable = e.attachments.some((a) => a.kind !== 'other' && !a.readable);
   const ocr = e.attachments.some((a) => a.method === 'pdf-ocr' || a.method === 'image-ocr');
@@ -73,16 +73,16 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
     title: unreadable ? 'A document could not be read' : ocr ? 'Scanned document read by OCR' : 'Documents read',
     state: unreadable ? 'stop' : ocr ? 'flag' : 'pass',
     detail: unreadable
-      ? 'Corrupt, encrypted or garbled file — nothing can be compared safely.'
+      ? 'Corrupt, encrypted or garbled file. Nothing can be compared safely.'
       : ocr
-        ? 'No text layer: OCR produced a pre-check, but OCR can misread characters, so a human confirms.'
+        ? 'No text layer: OCR produced a pre-check, but OCR can misread characters, so a person confirms the values.'
         : 'Every format is rebuilt into one canonical label / value layout before extraction.',
     items: readItems,
   });
   if (unreadable) return steps;
 
   if (e.extracted) {
-    const kinds = [`SI content identifies as: ${e.extracted.si.detectedKind ?? '—'}`, `BL content identifies as: ${e.extracted.bl.detectedKind ?? '—'}`];
+    const kinds = [`SI content identifies as: ${e.extracted.si.detectedKind ?? 'unknown'}`, `BL content identifies as: ${e.extracted.bl.detectedKind ?? 'unknown'}`];
     const wrong = e.reviewReason === 'wrong_doc_type';
     steps.push({
       key: 'doctype',
@@ -118,13 +118,13 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
       title: diff.length ? `${diff.length} of 7 fields differ` : 'All 7 fields agree',
       state: diff.length ? 'flag' : 'pass',
       detail: 'Exact legal names (formatting-tolerant), city + UN/LOCODE for ports, exact numbers after unit conversion.',
-      items: diff.map((r) => `${r.label} — SI: ${r.si} / BL: ${r.bl}`),
+      items: diff.map((r) => `${r.label}: SI ${r.si} / BL ${r.bl}`),
     });
   }
 
   steps.push({
     key: 'decide',
-    title: e.status === 'OK' ? 'Decision: no mismatch detected' : e.status === 'MISMATCH' ? 'Decision: mismatch — amend the draft BL' : 'Decision: escalated to a human',
+    title: e.status === 'OK' ? 'Decision: all fields match' : e.status === 'MISMATCH' ? 'Decision: discrepancy, amend the draft BL' : 'Decision: sent to a person for review',
     state: e.status === 'OK' ? 'pass' : e.status === 'MISMATCH' ? 'flag' : 'stop',
     detail: e.summary,
   });

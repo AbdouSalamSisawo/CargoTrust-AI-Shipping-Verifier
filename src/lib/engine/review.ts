@@ -25,10 +25,10 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
         evidence.push({
           doc,
           tone: 'warn',
-          lines: [`${a.name} — scanned, read by OCR (confidence ${a.ocrConfidence ?? '?'}%)`, ...FIELD_KEYS.map((k) => side?.lines[k] ?? `[${fieldLabel(k)} — not read]`)],
+          lines: [`${a.name}: scanned, read by OCR (confidence ${a.ocrConfidence ?? '?'}%)`, ...FIELD_KEYS.map((k) => side?.lines[k] ?? `[${fieldLabel(k)}: not read]`)],
         });
       } else {
-        evidence.push({ doc, tone: 'ok', lines: [`${a.name} — read from its text layer`] });
+        evidence.push({ doc, tone: 'ok', lines: [`${a.name}: read from its text layer`] });
       }
     }
     summary = ocr
@@ -36,7 +36,7 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
       : 'One or both documents cannot be read (corrupt, encrypted or garbled). The comparison was not attempted to avoid a false result.';
     suggestion = ocr
       ? 'Check each OCR value against the scan, fix any misread characters, then Correct & approve to run the comparison.'
-      : 'Request a readable copy from the sender — or read the seven fields from the original and Correct & approve.';
+      : 'Request a readable copy from the sender, or read the seven fields from the original and use Correct and approve.';
     for (const k of FIELD_KEYS) {
       editFields.push({
         field: k,
@@ -73,7 +73,7 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
     for (const docKey of ['si', 'bl'] as const) {
       const d = e.extracted?.[docKey];
       if (!d) continue;
-      const lines: string[] = FIELD_KEYS.map((k) => d.lines[k] ?? `[${fieldLabel(k)} — not found]`);
+      const lines: string[] = FIELD_KEYS.map((k) => d.lines[k] ?? `[${fieldLabel(k)}: not found]`);
       evidence.push({ doc: docKey === 'si' ? 'SI' : 'BL', tone: 'warn', lines });
     }
     const ph = { ...(e.extracted?.si.placeholders ?? {}), ...(e.extracted?.bl.placeholders ?? {}) };
@@ -91,7 +91,7 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
         doc: a.kind,
         tone: ok ? 'ok' : 'bad',
         lines: ok
-          ? [`${a.name} — content confirms a ${a.kind === 'SI' ? 'Shipping Instruction' : 'Bill of Lading'}`]
+          ? [`${a.name}: content confirms a ${a.kind === 'SI' ? 'Shipping Instruction' : 'Bill of Lading'}`]
           : [a.name, `Content identifies as: ${actual.replace('_', ' ').toLowerCase()}`, `Expected: ${a.kind === 'SI' ? 'Shipping Instruction' : 'draft Bill of Lading'}`],
       });
     }

@@ -39,7 +39,7 @@ function LoginInner() {
       setTimeout(go, 450);
     } catch {
       setState('error');
-      setErr('Network error — is the server running?');
+      setErr('The server could not be reached. Check your connection and try again.');
     }
   };
 

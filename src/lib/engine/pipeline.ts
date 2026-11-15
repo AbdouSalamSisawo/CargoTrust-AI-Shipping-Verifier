@@ -46,13 +46,13 @@ const KIND_LABEL: Record<DetectedKind, string> = {
 function summarizeNonDoc(category: string): string {
   switch (category) {
     case 'SI_REQUEST':
-      return 'Shipping Instruction request / submission — routed to the documentation desk. No SI/BL comparison required.';
+      return 'Shipping Instruction request or submission. Routed to the documentation desk; no document comparison needed.';
     case 'INVOICE_QUERY':
-      return 'Invoice / billing query — routed to the finance desk. No document comparison required.';
+      return 'Invoice or billing query. Routed to the finance desk; no document comparison needed.';
     case 'SPAM':
-      return 'Spam / phishing — quarantined. Do not click links or reply.';
+      return 'Spam or phishing. Quarantined: do not click links or reply.';
     default:
-      return 'General / operational correspondence — no document comparison required.';
+      return 'General operational correspondence. No document comparison needed.';
   }
 }
 
@@ -147,8 +147,8 @@ export function processEmail(
     email.awaitingDocuments = true;
     email.summary =
       cls.docIntent === 'request_document'
-        ? 'Draft BL requested for checking — no documents attached yet. The comparison runs when the SI and draft BL arrive.'
-        : 'Document thread without attachments — nothing to compare yet.';
+        ? 'Draft BL requested for checking. No documents are attached yet; the comparison runs when the SI and draft BL arrive.'
+        : 'Document thread without attachments. Nothing to compare yet.';
     return email;
   }
 
@@ -164,7 +164,7 @@ export function processEmail(
     const miss = !siAtt && !blAtt ? 'both the SI and the draft BL' : siAtt ? 'the draft BL' : 'the SI';
     return escalate(
       'missing_attachment',
-      `The sender asks for an SI/BL check but ${miss} ${!siAtt && !blAtt ? 'are' : 'is'} not attached${have.length ? ` (found: ${have.join(', ')})` : ''}. Escalated — request the missing document instead of guessing.`,
+      `The sender asks for an SI/BL check but ${miss} ${!siAtt && !blAtt ? 'are' : 'is'} not attached${have.length ? ` (found: ${have.join(', ')})` : ''}. Sent for review: request the missing document from the sender.`,
     );
   }
 
@@ -176,7 +176,7 @@ export function processEmail(
       !hasText(siRead) ? `${siAtt.name} (${siRead.error ?? 'no readable content'})` : null,
       !hasText(blRead) ? `${blAtt.name} (${blRead.error ?? 'no readable content'})` : null,
     ].filter(Boolean);
-    return escalate('unreadable', `Could not read ${bad.join(' and ')}. Escalated — ask the sender to re-send a readable copy.`);
+    return escalate('unreadable', `Could not read ${bad.join(' and ')}. Sent for review: ask the sender for a readable copy.`);
   }
 
   /** Extract one document; scans prefer the AI transcription and keep OCR as a cross-check. */
@@ -225,7 +225,7 @@ export function processEmail(
       !siOk ? `${siAtt.name} is ${KIND_LABEL[siKind]}, not a Shipping Instruction` : null,
       !blOk ? `${blAtt.name} is ${KIND_LABEL[blKind]}, not a Bill of Lading` : null,
     ].filter(Boolean);
-    return escalate('wrong_doc_type', `${parts.join('; ')}. Escalated — the comparison needs the SI and the draft BL.`);
+    return escalate('wrong_doc_type', `${parts.join('; ')}. Sent for review: the comparison needs the SI and the draft BL.`);
   }
 
   // OCR text gets OCR-tolerant comparison; an AI transcription is compared strictly.
@@ -253,9 +253,9 @@ export function processEmail(
         : missing.length
           ? `AI pre-check: ${missing.map(fieldLabel).join(', ')} not found`
           : cmp.defectFields.length
-            ? `AI pre-check suggests a mismatch on ${cmp.defectFields.map(fieldLabel).join(', ')}`
+            ? `AI pre-check suggests a discrepancy in ${cmp.defectFields.map(fieldLabel).join(', ')}`
             : 'AI pre-check: all 7 fields agree';
-      return escalate('unreadable', `${readNote} ${pre}. A human confirms against the scan before release.`);
+      return escalate('unreadable', `${readNote} ${pre}. A person confirms the values against the scan.`);
     }
   } else if (scans.length) {
     // Scans have no text layer: OCR gives a pre-check, a human confirms.
@@ -265,11 +265,11 @@ export function processEmail(
     const pre = missing.length
       ? `OCR could not locate ${missing.map(fieldLabel).join(', ')}`
       : cmp.defectFields.length
-        ? `OCR pre-check suggests a mismatch on ${cmp.defectFields.map(fieldLabel).join(', ')}`
+        ? `OCR pre-check suggests a discrepancy in ${cmp.defectFields.map(fieldLabel).join(', ')}`
         : 'OCR pre-check: all 7 fields agree';
     return escalate(
       'unreadable',
-      `${scans.some((r) => r.read.method === 'image-ocr') ? 'Photo or image' : 'Scanned document'} without a text layer — read by OCR (confidence ${Math.min(...conf)}%). ${pre}. A human must confirm against the scan before release.`,
+      `${scans.some((r) => r.read.method === 'image-ocr') ? 'Photo or image' : 'Scanned document'} without a text layer, read by OCR (confidence ${Math.min(...conf)}%). ${pre}. A person must confirm the values against the scan.`,
     );
   }
 
@@ -287,7 +287,7 @@ export function processEmail(
     void placeholders;
     return escalate(
       'missing_value',
-      `Required value${missingAll.length > 1 ? 's' : ''} missing — ${detail}. A blank or placeholder is never treated as a match; escalated for the customer to complete.`,
+      `Required value${missingAll.length > 1 ? 's' : ''} missing: ${detail}. A blank or placeholder is never treated as a match; the customer needs to complete it.`,
     );
   }
 
@@ -301,6 +301,6 @@ export function processEmail(
         .filter((r) => r.match === false)
         .map((r) => `${r.label} (SI: ${r.si} / BL: ${r.bl})`)
         .join('; ')}.`
-    : 'No mismatch detected — all 7 fields match between the SI and the draft BL.';
+    : 'All 7 fields match between the SI and the draft BL.';
   return email;
 }

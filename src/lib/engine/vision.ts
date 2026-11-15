@@ -40,7 +40,7 @@ Write the transcription in this layout:
 - Tables (containers, packages, marks and numbers) are written row by row, cells separated by " | ", header row first.
 - Headings and free text are written as plain lines.
 
-Transcribe exactly what is printed. Do not correct spelling, expand abbreviations, convert units, reformat numbers or fill in anything that is not on the page — a discrepancy in the original is exactly what the system needs to see. Where characters cannot be read with confidence, write [?] in their place, and list the label of every field containing [?] in unclear_fields.`;
+Transcribe exactly what is printed. Do not correct spelling, expand abbreviations, convert units, reformat numbers or fill in anything that is not on the page: a discrepancy in the original is exactly what the system needs to see. Where characters cannot be read with confidence, write [?] in their place, and list the label of every field containing [?] in unclear_fields.`;
 
 export async function transcribeScan(buf: Buffer, ext: string, cfg: AiConfig): Promise<{ text: string | null; unclear: string[]; documentType?: string; error?: string }> {
   const pages = await scanPageImages(buf, ext);
@@ -82,7 +82,7 @@ export async function transcribeScan(buf: Buffer, ext: string, cfg: AiConfig): P
     if (e instanceof Anthropic.AuthenticationError) msg = 'the Anthropic API key was rejected';
     else if (e instanceof Anthropic.PermissionDeniedError) msg = 'the API key has no access to this model';
     else if (e instanceof Anthropic.NotFoundError) msg = `model "${cfg.model}" was not found`;
-    else if (e instanceof Anthropic.RateLimitError) msg = 'rate limited by the Anthropic API — try again shortly';
+    else if (e instanceof Anthropic.RateLimitError) msg = 'rate limited by the Anthropic API, try again shortly';
     else if (e instanceof Anthropic.APIConnectionError) msg = 'could not reach the Anthropic API (network)';
     else if (e instanceof Anthropic.APIError) msg = `Anthropic API error ${e.status ?? ''}`.trim();
     else msg = e instanceof Error ? e.message : String(e);
