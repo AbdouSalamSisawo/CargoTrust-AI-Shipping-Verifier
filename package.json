@@ -8,9 +8,11 @@
     "build": "next build",
     "start": "next start",
     "engine": "tsx scripts/run-engine.ts",
-    "score": "npm run engine && bash scripts/score.sh"
+    "score": "npm run engine && bash scripts/score.sh",
+    "robustness": "tsx scripts/robustness.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.100",
     "jszip": "^3.10.1",
     "next": "^14.2.5",
     "pdfjs-dist": "^4.10.38",

@@ -16,6 +16,7 @@ export interface DashboardMetrics {
   matches: number;
   mismatches: number;
   needsReview: number;
+  awaitingDocs: number;
   reviewOpen: number;
   reviewResolved: number;
   defectHist: { field: FieldKey; label: string; count: number }[];
@@ -41,7 +42,10 @@ export function computeMetrics(db: DBShape): DashboardMetrics {
     statusCounts[e.status] = (statusCounts[e.status] ?? 0) + 1;
   }
   const docChecks = emails.filter((e) => e.category === 'BL_COMPARISON');
-  const matches = docChecks.filter((e) => e.status === 'OK').length;
+  // a thread that only requested a draft BL has status OK but compared nothing
+  const awaiting = docChecks.filter((e) => e.awaitingDocuments).length;
+  const withDocs = docChecks.filter((e) => !e.awaitingDocuments);
+  const matches = withDocs.filter((e) => e.status === 'OK').length;
   const mismatches = docChecks.filter((e) => e.status === 'MISMATCH').length;
   const needsReview = docChecks.filter((e) => e.status === 'NEEDS_REVIEW').length;
 
@@ -79,18 +83,19 @@ export function computeMetrics(db: DBShape): DashboardMetrics {
     matches,
     mismatches,
     needsReview,
+    awaitingDocs: awaiting,
     reviewOpen,
     reviewResolved,
     defectHist,
-    autoResolvedPct: pct(decided, docChecks.length),
-    extractionCoveragePct: pct(fullyExtracted, docChecks.length),
+    autoResolvedPct: pct(decided, withDocs.length),
+    extractionCoveragePct: pct(fullyExtracted, withDocs.length),
     avgConfidence: avgConfidencePct,
     pipeline: [
       { icon: 'inbox', label: 'Receive', stat: String(total), sub: 'emails ingested' },
       { icon: 'sparkles', label: 'Classify', stat: `${avgConfidencePct.toFixed(1)}%`, sub: 'avg confidence' },
-      { icon: 'scan', label: 'Extract', stat: String(docChecks.length), sub: 'SI/BL pairs parsed' },
+      { icon: 'scan', label: 'Read', stat: String(withDocs.length), sub: `document sets read · ${awaiting} awaiting docs` },
       { icon: 'gitCompare', label: 'Compare', stat: String(decided), sub: '7-field checks run' },
-      { icon: 'shieldCheck', label: 'Decide', stat: `${pct(decided, docChecks.length)}%`, sub: 'auto-resolved' },
+      { icon: 'shieldCheck', label: 'Decide', stat: `${pct(decided, withDocs.length)}%`, sub: 'auto-resolved' },
     ],
     attention,
     feed: emails
@@ -100,8 +105,8 @@ export function computeMetrics(db: DBShape): DashboardMetrics {
       .map((e) => ({ id: e.id, subject: e.subject, from: e.from, status: e.status, category: e.category, defectCount: e.defectFields.length })),
     kpis: [
       { icon: 'inbox', label: 'Total Emails', value: total, note: 'in processed inbox', tone: 'neutral' },
-      { icon: 'gitCompare', label: 'BL Comparisons', value: docChecks.length, note: 'document-check requests', tone: 'neutral' },
-      { icon: 'checkCircle', label: 'Clean Matches', value: matches, note: `${pct(matches, docChecks.length)}% of checks`, tone: 'good' },
+      { icon: 'gitCompare', label: 'BL Comparisons', value: docChecks.length, note: `${withDocs.length} with documents · ${awaiting} awaiting`, tone: 'neutral' },
+      { icon: 'checkCircle', label: 'Clean Matches', value: matches, note: `${pct(matches, withDocs.length)}% of document sets`, tone: 'good' },
       { icon: 'alertTriangle', label: 'Defects Caught', value: docChecks.reduce((s, e) => s + e.defectFields.length, 0), note: `${mismatches} emails flagged`, tone: 'bad' },
       { icon: 'userCheck', label: 'Human Reviews', value: reviewOpen, note: `${reviewResolved} resolved`, tone: 'neutral' },
     ],

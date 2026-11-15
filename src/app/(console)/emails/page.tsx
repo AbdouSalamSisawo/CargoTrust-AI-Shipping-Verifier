@@ -16,6 +16,7 @@ interface Row {
   confidence: number;
   defectCount: number;
   reviewReason: string | null;
+  awaitingDocuments?: boolean;
   hasAttachments: boolean;
   summary: string;
 }
@@ -158,6 +159,8 @@ export default function EmailsPage() {
                           <StatusBadge status={e.status} size="sm"/>
                           {e.reviewReason ? <ReasonBadge reason={e.reviewReason as never}/> : e.defectCount > 0 ? (
                             <span className="text-[11px] font-bold text-red-500 whitespace-nowrap">{e.defectCount} field{e.defectCount > 1 ? 's' : ''}</span>
+                          ) : e.awaitingDocuments ? (
+                            <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5">awaiting docs</span>
                           ) : null}
                         </div>
                         <div className="text-[11px] text-slate-400 truncate max-w-[260px] mt-1">{e.summary}</div>

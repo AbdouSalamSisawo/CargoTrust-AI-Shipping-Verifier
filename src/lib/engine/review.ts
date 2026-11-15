@@ -14,20 +14,29 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
   let suggestion = '';
 
   if (reason === 'unreadable') {
+    const ocr = e.attachments.some((a) => a.method === 'pdf-ocr');
     for (const a of e.attachments) {
-      const doc = a.kind === 'SI' ? 'SI' : 'BL';
+      if (a.kind === 'other') continue;
+      const doc = a.kind;
+      const side = doc === 'SI' ? e.extracted?.si : e.extracted?.bl;
       if (!a.readable) {
+        evidence.push({ doc, tone: 'bad', lines: [`${a.name}`, a.error ?? 'No readable content.', 'Ask the sender to re-send a readable copy.'] });
+      } else if (a.method === 'pdf-ocr') {
         evidence.push({
           doc,
-          tone: 'bad',
-          lines: [`[binary document: ${a.name} — ${a.ext.toUpperCase()}]`, 'No text layer accessible to the rules engine.', 'Requires OCR / table parsing or manual reading.'],
+          tone: 'warn',
+          lines: [`${a.name} — scanned, read by OCR (confidence ${a.ocrConfidence ?? '?'}%)`, ...FIELD_KEYS.map((k) => side?.lines[k] ?? `[${fieldLabel(k)} — not read]`)],
         });
       } else {
-        evidence.push({ doc, tone: 'ok', lines: ['[text document available — comparison possible from this side]'] });
+        evidence.push({ doc, tone: 'ok', lines: [`${a.name} — read from its text layer`] });
       }
     }
-    summary = 'One or both documents cannot be read by the engine. The comparison was not attempted to avoid a false result.';
-    suggestion = 'Read the seven fields from the original file(s), enter them below, then Correct & approve — or Approve to request a text copy from the sender.';
+    summary = ocr
+      ? 'Scanned document(s) without a text layer. OCR pre-filled the values below; confirm them against the scan before the result is released.'
+      : 'One or both documents cannot be read (corrupt, encrypted or garbled). The comparison was not attempted to avoid a false result.';
+    suggestion = ocr
+      ? 'Check each OCR value against the scan, fix any misread characters, then Correct & approve to run the comparison.'
+      : 'Request a readable copy from the sender — or read the seven fields from the original and Correct & approve.';
     for (const k of FIELD_KEYS) {
       editFields.push({
         field: k,
@@ -67,19 +76,27 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
       const lines: string[] = FIELD_KEYS.map((k) => d.lines[k] ?? `[${fieldLabel(k)} — not found]`);
       evidence.push({ doc: docKey === 'si' ? 'SI' : 'BL', tone: 'warn', lines });
     }
-    summary = 'The documents were readable, but a required field could not be located on one side. The engine cannot compare a value it never found.';
+    const ph = { ...(e.extracted?.si.placeholders ?? {}), ...(e.extracted?.bl.placeholders ?? {}) };
+    const phList = Object.entries(ph).map(([k, v]) => `${fieldLabel(k)} = "${v}"`);
+    summary = `The documents were readable, but required values are blank or placeholders${phList.length ? ` (${phList.join(', ')})` : ''}. The engine never treats a placeholder as a match.`;
     suggestion = 'Enter the missing value(s) exactly as written in the source document, then Correct & approve to finalize the comparison.';
   } else {
     // wrong_doc_type
     for (const a of e.attachments) {
+      if (a.kind === 'other') continue;
+      const side = a.kind === 'SI' ? e.extracted?.si : e.extracted?.bl;
+      const actual = side?.detectedKind ?? 'UNKNOWN';
+      const ok = actual === a.kind;
       evidence.push({
-        doc: a.kind === 'SI' ? 'SI' : 'BL',
-        tone: 'bad',
-        lines: [a.name, 'Document does not carry a recognizable SI / draft BL header or field set.', 'Possible wrong attachment or mislabeled export.'],
+        doc: a.kind,
+        tone: ok ? 'ok' : 'bad',
+        lines: ok
+          ? [`${a.name} — content confirms a ${a.kind === 'SI' ? 'Shipping Instruction' : 'Bill of Lading'}`]
+          : [a.name, `Content identifies as: ${actual.replace('_', ' ').toLowerCase()}`, `Expected: ${a.kind === 'SI' ? 'Shipping Instruction' : 'draft Bill of Lading'}`],
       });
     }
-    summary = 'One of the attachments does not look like the document type its filename claims. Comparing it would produce a false result.';
-    suggestion = 'Verify the attachments with the sender. If the documents are correct, Correct & approve with the values read manually.';
+    summary = 'An attachment is not the document its filename claims (e.g. a commercial invoice, packing list or certificate of origin). Comparing it would produce a false result.';
+    suggestion = 'Ask the sender for the correct document. If you have it, Correct & approve with the values read from it.';
   }
 
   return {

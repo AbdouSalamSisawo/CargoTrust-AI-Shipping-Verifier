@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       confidence: e.confidence,
       defectCount: e.defectFields.length,
       reviewReason: e.reviewReason,
+      awaitingDocuments: !!e.awaitingDocuments,
       hasAttachments: e.attachments.length > 0,
       summary: e.summary,
     })),

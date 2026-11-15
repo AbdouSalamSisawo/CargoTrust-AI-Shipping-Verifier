@@ -125,6 +125,7 @@ export default function DashboardPage() {
       { label: 'OK', value: m.matches, color: '#10B981' },
       { label: 'Mismatch', value: m.mismatches, color: '#EF4444' },
       { label: 'Needs review', value: m.needsReview, color: '#F59E0B' },
+      { label: 'Awaiting docs', value: m.awaitingDocs, color: '#94A3B8' },
     ];
   }, [m]);
 
@@ -184,7 +185,7 @@ export default function DashboardPage() {
                   </div>
                   <h2 className="font-display text-[24px] font-bold text-white mt-3">AI Verification Status</h2>
                   <p className="text-white/55 text-[13.5px] leading-relaxed mt-1.5 max-w-md">
-                    {fmt(m.total)} emails processed. {fmt(m.docChecks)} document-check requests compared across seven fields — {m.needsReview} escalated to human review, never guessed.
+                    {fmt(m.total)} emails processed. {fmt(m.docChecks - m.awaitingDocs)} document sets compared across seven fields ({m.awaitingDocs} threads still awaiting documents) — {m.needsReview} escalated to human review, never guessed.
                   </p>
                   <div className="flex flex-wrap justify-center lg:justify-start gap-2.5 mt-4">
                     {[

@@ -69,7 +69,7 @@ export function fieldForLabel(rawLabel: string, fuzzy = false): FieldKey | null 
       const d = lev(squashed, w);
       if (d < best[1]) best = [key, d];
     }
-    if (best[0] && best[1] <= Math.max(1, Math.floor(squashed.length / 5))) return best[0];
+    if (best[0] && best[1] <= Math.max(1, Math.round(squashed.length / 4))) return best[0];
   }
   return null;
 }

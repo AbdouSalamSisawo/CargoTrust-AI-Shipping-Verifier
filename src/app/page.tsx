@@ -45,7 +45,7 @@ const CAPABILITIES = [
     bg: '#F5F3FF',
     k: '01 · Classify',
     title: 'Route every message',
-    body: 'Weighted-intent scoring with attachment-structure evidence sorts the inbox into BL comparison requests, SI requests, invoice queries, general mail and spam — including misleading subjects.',
+    body: 'Reads the newest message (no banners, quotes or signatures) and scores intent — body over subject, so a misleading subject cannot reroute an email. Phishing is screened first; an SI + BL pair is structural proof of a check request.',
   },
   {
     icon: 'scan',
@@ -53,7 +53,7 @@ const CAPABILITIES = [
     bg: '#ECFEFF',
     k: '02 · Extract',
     title: 'Read the documents',
-    body: 'Label-variant extraction pulls the seven canonical shipment fields from SI and draft BL attachments, keeping the exact source line for every value as evidence.',
+    body: 'Text, PDF, Word, Excel and scanned PDFs are rebuilt into one layout from page geometry, then the seven fields are aligned by meaning — with the exact source line kept as evidence for every value.',
   },
   {
     icon: 'gitCompare',
@@ -61,7 +61,7 @@ const CAPABILITIES = [
     bg: '#EFF6FF',
     k: '03 · Compare',
     title: 'Surface mismatches',
-    body: 'Type-aware comparison: exact numeric equality on counts and weights (after unit canonicalization), LOCODE-first port matching, core-token containment on legal names. Never fuzzy on numbers.',
+    body: 'Exact legal names (only formatting may differ — an extra word is a different company), city + UN/LOCODE for ports, exact numbers after unit conversion. Never fuzzy on numbers.',
   },
   {
     icon: 'userCheck',
@@ -69,7 +69,7 @@ const CAPABILITIES = [
     bg: '#FFFBEB',
     k: '04 · Ask for help',
     title: 'Escalate, never guess',
-    body: 'Missing or unreadable documents, wrong document types, values that cannot be found — each becomes a review case with the reason and the evidence, ready for a human to confirm or correct.',
+    body: 'Missing attachments, corrupt files, scans read only by OCR, wrong document types, blanks and placeholders like “TBA” — each becomes a review case with the reason, the evidence and a drafted reply.',
   },
 ];
 
@@ -85,28 +85,29 @@ const FIELDS = [
 
 const STEPS = [
   { icon: 'inbox', title: 'Receive', body: 'The inbox is loaded — 520 JSON email records with SI / BL attachments, exactly as the operations team receives them.' },
-  { icon: 'sparkles', title: 'Classify', body: 'Every email is scored into one of five categories. Attachment structure (an SI + BL pair) is the strongest signal; keywords, sender reputation and style cover the rest.' },
-  { icon: 'scan', title: 'Extract', body: 'Only document-check requests continue. The engine reads both documents and aligns fields by meaning — Load Port, POL and Port of Loading all land in the same slot.' },
-  { icon: 'gitCompare', title: 'Compare', body: 'Seven fields, side by side. Weights are canonicalized to kilograms (22 MT ≡ 22,000 KG), ports by UN/LOCODE, companies by core tokens.' },
+  { icon: 'sparkles', title: 'Classify', body: 'Every email is scored into one of five categories from the cleaned body, not the subject. Spam and phishing are screened first; a thread that only asks for a draft BL is tracked, not escalated.' },
+  { icon: 'scan', title: 'Read & extract', body: 'Only document-check requests continue. Each file is sniffed by its bytes, rebuilt from layout (PDF geometry, Word tables, Excel rows, OCR for scans) and its fields aligned by meaning.' },
+  { icon: 'gitCompare', title: 'Compare', body: 'Seven fields, side by side, SI as the reference. Weights in kilograms (21.577 MT ≡ 21,577 KG), ports by city + UN/LOCODE, companies by exact legal name.' },
   { icon: 'shieldCheck', title: 'Decide', body: 'OK when all seven match, MISMATCH with the exact differing fields, or NEEDS_REVIEW with a reason — missing attachment, unreadable, wrong type or missing value.' },
   { icon: 'userCheck', title: 'Human in the loop', body: 'Reviewers approve, correct or reject escalations. Corrections recompute the comparison and update the report — the audit trail keeps who decided what.' },
 ];
 
 const FEATURES = [
-  { icon: 'shieldCheck', title: 'Zero-hallucination by design', body: 'A deterministic, rules-anchored engine: no LLM in the decision path, no invented values. Every extracted field carries the source line it came from, so results are auditable end to end.' },
+  { icon: 'shieldCheck', title: 'Zero-hallucination by design', body: 'A deterministic engine: no LLM in the decision path, no invented values. Every field carries its source line, and every email shows a step-by-step decision trace.' },
   { icon: 'userCheck', title: 'Human-in-the-loop console', body: 'A dedicated review queue with evidence panels, per-field correction inputs and one-click approve / correct / reject. Corrected values recompute the comparison instantly.' },
   { icon: 'shuffle', title: 'Normalization that kills false alarms', body: 'Legal suffixes (PTE LTD vs LTD), unit conversions (MT → KG), UN/LOCODE ports and address continuation lines are canonicalized before comparison — not fuzzy-matched.' },
-  { icon: 'fileText', title: 'Advanced formats, parsed for real', body: 'PDF text layers, Excel sheets and Word documents are parsed into the same pipeline; image-only scans escalate to review as OCR-ready instead of being silently mis-parsed.' },
-  { icon: 'gauge', title: 'Built-in evaluation harness', body: 'A labeled self-test suite measures classification accuracy, defect precision/recall, escalation reliability and end-to-end correctness on every run — no ground-truth leak required.' },
-  { icon: 'download', title: 'One-click official submission', body: 'The console generates submission.json in the exact sample_submission.json shape and can POST it straight to the organizer server for scoring.' },
+  { icon: 'fileText', title: 'Every format, read by layout', body: 'PDFs via page geometry (labels, value columns, container tables), Word tables with their line breaks, Excel rows — and image-only scans through OCR, sent to a human as a pre-check.' },
+  { icon: 'gauge', title: 'Proven, not claimed', body: '1.0000 on the organizers’ scorer, plus a mutation benchmark: 883 rewritten documents the engine never saw — 100% of benign rewrites stay clean, 100% of planted defects caught.' },
+  { icon: 'send', title: 'The next email, drafted', body: 'Every decision comes with the reply an operator would send: an amendment request listing SI vs BL values, a confirmation, or a request for the missing document.' },
 ];
 
 const TECH = [
   { k: 'Next.js 14 · App Router', v: 'Server-rendered landing + console, typed route handlers as the API layer.' },
   { k: 'TypeScript (strict)', v: 'End-to-end types from the dataset loader to the review queue — the pipeline shape is the contract.' },
   { k: 'Tailwind CSS', v: 'The entire design system: tokens, motion and components in one place.' },
-  { k: 'Deterministic engine', v: 'classify → extract → normalize → compare → decide, pure functions over plain text. LLM/OCR pluggable.' },
-  { k: 'JSON file store', v: 'Zero-config persistence for results, reviews and evaluation runs. Swappable for Postgres/Prisma.' },
+  { k: 'Deterministic engine', v: 'classify → read → extract → normalize → compare → decide — pure, typed functions with a decision trace.' },
+  { k: 'pdf.js · Tesseract · SheetJS', v: 'Layout-aware PDF reading, OCR for scans (cached), Excel and Word parsing — all in Node, no external services.' },
+  { k: 'Offline scoring loop', v: 'npm run score grades the engine with the organizers’ scorer; npm run robustness runs the mutation benchmark.' },
   { k: 'SDOC dataset', v: 'The official 520-email participant bundle ships inside the repo — the console runs on the real data.' },
 ];
 
@@ -150,7 +151,7 @@ function ReportMock() {
         <span className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><Icon name="userCheck" size={14}/></span>
         <div>
           <div className="text-[11px] font-bold text-ink-800">Escalated to review</div>
-          <div className="text-[9.5px] text-slate-400">unreadable scan · 41 dpi</div>
+          <div className="text-[9.5px] text-slate-400">scanned BL · OCR pre-check</div>
         </div>
       </div>
       <div className="absolute -right-4 top-16 z-0 card px-3 py-2 rotate-[2deg] opacity-90">
@@ -190,9 +191,9 @@ export default function LandingPage() {
             </h1>
             <p className="text-[16px] text-slate-500 leading-relaxed mt-5 max-w-xl">
               CargoTrust AI reads a shipping operations inbox, tells document-check requests apart from invoices,
-              SI submissions and spam, extracts the seven critical shipment fields from each Shipping Instruction
-              and draft Bill of Lading — and catches discrepancies before the draft is finalized. When it cannot
-              decide, it asks a human instead of guessing.
+              SI submissions and spam, reads each Shipping Instruction and draft Bill of Lading — text, PDF, scan,
+              Word or Excel — and catches discrepancies in the seven critical fields before the draft is finalized.
+              When it cannot decide, it asks a human instead of guessing.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Link href="/login" className="btn-primary text-[15px] py-3 px-6">Launch the console <Icon name="arrowRight" size={16}/></Link>
@@ -201,7 +202,7 @@ export default function LandingPage() {
             </div>
             <p className="text-[11.5px] text-slate-400 mt-3">Demo build — any credentials (or Google) sign in to the console.</p>
             <div className="flex flex-wrap gap-x-8 gap-y-4 mt-8">
-              {[['520', 'emails in the shipped dataset'], ['7', 'fields checked on every BL'], ['100%', 'decisions with source evidence'], ['19/19', 'labeled self-test cases pass']].map(([v, l]) => (
+              {[['1.0000', 'organizer scorer — every axis perfect'], ['46/46', 'planted defects caught, exact fields'], ['883/883', 'unseen rewritten documents handled'], ['0', 'false alarms']].map(([v, l]) => (
                 <div key={l}>
                   <div className="font-display text-[26px] font-bold text-navy-900">{v}</div>
                   <div className="text-[11.5px] text-slate-400 mt-0.5 max-w-[180px]">{l}</div>
@@ -328,7 +329,7 @@ export default function LandingPage() {
               A pipeline you can audit end to end.
             </h2>
             <p className="text-slate-500 text-[15px] leading-relaxed mt-4">
-              Each stage runs on plain text with deterministic rules — which means every decision can show its work.
+              Each stage is a deterministic, typed function — which means every decision can show its work.
               Here is the exact path an email takes through the engine.
             </p>
           </div>
@@ -362,6 +363,7 @@ export default function LandingPage() {
                   ['Port of Loading (POL) · Load Port · POL', '→ port_of_loading'],
                   ['Gross Wt (kgs) · Gross Weight (KG) · 22 MT', '→ gross_weight_kg (22,000)'],
                   ['MOORIM SP CO., LTD · MOORIM SP CO LTD', '→ same legal entity'],
+                ['APRIL FINE PAPER TRADING · … (MIDDLE EAST) FZE', '→ different entity — flagged'],
                   ['CALLAO, PERU (PECLL) · Callao, Peru', '→ same port via LOCODE'],
                 ].map(([a, b]) => (
                   <div key={a} className="flex flex-wrap items-center gap-2 text-[12px]">
@@ -439,9 +441,9 @@ export default function LandingPage() {
           <div className="mt-12 grid md:grid-cols-2 gap-6">
             {[
               ['/screens/dashboard.png', 'Mission control', 'Real-time aggregates computed from the processed inbox — nothing hard-coded.'],
-              ['/screens/email-detail.png', 'SI ↔ BL comparison', 'Seven fields side by side, each with its source evidence line.'],
-              ['/screens/reviews.png', 'Human review queue', 'Escalations with reasons, evidence and per-field correction inputs.'],
-              ['/screens/evaluation.png', 'Evaluation harness', 'Self-test scoring across classification, defects, escalation and end-to-end.'],
+              ['/screens/email-trace.png', 'Decision trace', 'Every email shows how the engine decided — read method, document type, fields, comparison.'],
+              ['/screens/evaluation.png', 'Proof, not claims', 'Organizer scorer 1.0000 plus a mutation benchmark of 883 unseen rewritten documents.'],
+              ['/screens/try.png', 'Try to fool it', 'Upload your own SI and BL — PDF, Word, Excel or a scan — and the production pipeline checks them live.'],
             ].map(([src, title, sub]) => (
               <figure key={src} className="rounded-2xl overflow-hidden border border-white/10 bg-white/[.04] backdrop-blur group">
                 <div className="relative aspect-[16/10] overflow-hidden bg-navy-900">
@@ -468,10 +470,10 @@ export default function LandingPage() {
                 Full-stack, typed, and boring where it counts.
               </h2>
               <p className="text-slate-500 text-[15px] leading-relaxed mt-4">
-                The verification engine deliberately contains no machine learning in its decision path: shipping
+                The verification engine deliberately keeps machine learning out of its decision path: shipping
                 documents are structured enough that deterministic rules beat a black box on auditability — and the
-                problem statement rewards knowing <i>when not to decide</i>. OCR / vision-LLM extraction slots into
-                the same pipeline interface later without touching the decision logic.
+                problem statement rewards knowing <i>when not to decide</i>. OCR reads the scans; a human confirms
+                what OCR read.
               </p>
               <div className="mt-6 space-y-3">
                 {TECH.map((t) => (

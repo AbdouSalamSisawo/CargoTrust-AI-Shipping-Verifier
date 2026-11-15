@@ -4,6 +4,8 @@ import { getDB, mutate } from '@/lib/store';
 import { runSelfTest } from '@/lib/metrics';
 import { buildSubmission } from '@/lib/submission';
 import { PRODUCT } from '@/data/taxonomy';
+import { readAttachment } from '@/lib/dataset';
+import { runRobustness } from '@/lib/engine/robustness';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,21 @@ export async function POST(req: NextRequest) {
       return r;
     });
     return NextResponse.json({ ok: true, run });
+  }
+
+  if (body.action === 'robustness') {
+    // every clean SI/BL pair the engine judged OK → rewritten hundreds of ways
+    const db = await getDB();
+    const pairs: { id: string; si: string; bl: string }[] = [];
+    for (const e of Object.values(db.emails)) {
+      if (e.status !== 'OK' || !e.extracted) continue;
+      const si = e.attachments.find((a) => a.kind === 'SI');
+      const bl = e.attachments.find((a) => a.kind === 'BL');
+      if (!si || !bl) continue;
+      const [st, bt] = await Promise.all([readAttachment(si.path), readAttachment(bl.path)]);
+      if (st.text && bt.text && st.method !== 'pdf-ocr' && bt.method !== 'pdf-ocr') pairs.push({ id: e.id, si: st.text, bl: bt.text });
+    }
+    return NextResponse.json({ ok: true, report: runRobustness(pairs) });
   }
 
   if (body.action === 'score') {

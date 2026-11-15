@@ -93,9 +93,11 @@ export function parseWeightKg(raw: string): number | null {
   const s = raw.toUpperCase().replace(/(\d)\s+(?=\d{3}\b)/g, '$1');
   const m = s.match(/(\d[\d.,]*)\s*(KGS?|KILOS?|KILOGRAMS?|MT|M\/T|TONS?|TONNES?|LBS?|POUNDS?)?/);
   if (!m) return null;
-  const v = parseNumber(m[1]);
-  if (v == null) return null;
   const u = m[2] || 'KG';
+  const tonnes = u === 'MT' || u === 'M/T' || u.startsWith('TON');
+  // a tonnage is small: "21.577 MT" / "21,577 MT" are 21.577 t, not 21,577 t
+  const v = tonnes && /^\d{1,4}[.,]\d{1,3}$/.test(m[1]) ? parseFloat(m[1].replace(',', '.')) : parseNumber(m[1]);
+  if (v == null) return null;
   if (u.startsWith('K')) return v;
   if (u === 'MT' || u === 'M/T' || u.startsWith('TON')) return v * 1000;
   if (u.startsWith('LB') || u.startsWith('POUND')) return v * 0.45359237;

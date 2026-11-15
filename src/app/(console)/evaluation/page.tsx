@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { EvalRun } from '@/lib/types';
+import type { RobustnessReport } from '@/lib/engine/robustness';
 import { Icon } from '@/components/icons';
 import { Ring, LineChart, Skeleton, EmptyState, useToast, M } from '@/components/ui';
 import { cx } from '@/lib/utils';
@@ -24,13 +25,76 @@ function ScoreBar({ label, value, color, hint }: { label: string; value: number;
   );
 }
 
+interface Scoreboard {
+  final_score?: number;
+  stage1?: { macro_f1: number; accuracy: number };
+  stage3?: { defect_f1: number; field_f1: number };
+  end_to_end?: { success: number; total: number; rate: number };
+  reliability?: { escalation_recall: number; escalation_precision: number; gold_review: number; pred_review: number };
+}
+
+function Tile({ label, value, sub, tone = 'brand' }: { label: string; value: string; sub?: string; tone?: 'brand' | 'good' | 'warn' }) {
+  const c = tone === 'good' ? 'text-emerald-600' : tone === 'warn' ? 'text-amber-600' : 'text-brand-600';
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-3">
+      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={cx('font-display text-[22px] font-bold tabular-nums leading-tight mt-0.5', c)}>{value}</div>
+      {sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function RobustnessCard({ r }: { r: RobustnessReport }) {
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  return (
+    <M from={{ opacity: 0, transform: 'translateY(16px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5">
+      <h3 className="font-bold text-[15px] text-navy-900 flex items-center gap-2"><Icon name="shuffle" size={15} className="text-ai-500"/>Mutation robustness benchmark</h3>
+      <p className="text-xs text-slate-400 mt-0.5 mb-4">
+        Every clean SI/BL pair ({r.pairs}) rewritten {r.benign.total + r.defect.total} ways the engine never saw: benign rewrites must stay OK,
+        planted defects must be flagged on exactly the planted field. Evidence the rules generalise beyond the 520 emails.
+      </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Tile label="Benign rewrites stay OK" value={pct(r.benign.rate)} sub={`${r.benign.stayedOk}/${r.benign.total} · no false alarms`} tone="good"/>
+        <Tile label="Planted defects, exact field" value={pct(r.defect.rate)} sub={`${r.defect.exact}/${r.defect.total} caught`} tone="good"/>
+        <Tile label="Mutation types" value={String(r.perMutation.length)} sub="relabels, units, legal forms, swaps…"/>
+        <Tile label="Clean pairs" value={String(r.pairs)} sub="text, PDF, Word, Excel"/>
+      </div>
+      <div className="mt-4 grid md:grid-cols-2 gap-x-6 gap-y-1.5">
+        {r.perMutation.map((m) => (
+          <div key={m.id} className="flex items-center gap-2 text-[11.5px]">
+            <span className={cx('w-12 shrink-0 text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 text-center', m.kind === 'benign' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>{m.kind}</span>
+            <span className="flex-1 text-slate-500 truncate" title={m.label}>{m.label}</span>
+            <span className={cx('font-bold tabular-nums', m.passed === m.total ? 'text-emerald-600' : 'text-amber-600')}>{m.passed}/{m.total}</span>
+          </div>
+        ))}
+      </div>
+    </M>
+  );
+}
+
 export default function EvaluationPage() {
   const toast = useToast();
   const [runs, setRuns] = useState<EvalRun[] | null>(null);
   const [latest, setLatest] = useState<EvalRun | null>(null);
   const [sdocUrl, setSdocUrl] = useState('');
-  const [busy, setBusy] = useState<'run' | 'score' | null>(null);
+  const [busy, setBusy] = useState<'run' | 'score' | 'robust' | null>(null);
   const [scoreResult, setScoreResult] = useState<string>('');
+  const [board, setBoard] = useState<Scoreboard | null>(null);
+  const [robust, setRobust] = useState<RobustnessReport | null>(null);
+
+  const runRobustness = async () => {
+    setBusy('robust');
+    try {
+      const r = await fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'robustness' }) });
+      const d = await r.json();
+      if (d.ok) {
+        setRobust(d.report);
+        toast('Robustness benchmark complete', `${d.report.benign.total + d.report.defect.total} mutated documents checked`, 'ai');
+      } else toast('Benchmark failed', d.error ?? 'Unknown error', 'danger');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const load = useCallback(async () => {
     const r = await fetch('/api/evaluation');
@@ -64,6 +128,7 @@ export default function EvaluationPage() {
       const d = await r.json();
       if (d.ok) {
         setScoreResult(JSON.stringify(d.data, null, 2));
+        setBoard(d.data as Scoreboard);
         toast('Scoreboard received', 'The SDOC server returned an evaluation result.', 'success');
       } else {
         setScoreResult(d.error ?? 'Unknown error');
@@ -91,13 +156,16 @@ export default function EvaluationPage() {
         <div>
           <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Evaluation</h1>
           <p className="text-sm text-slate-400 mt-1">
-            The organizers keep the reference answers private — so the console ships a labeled self-test suite covering
-            every category, defect type and escalation reason.
+            Three independent checks: a labeled self-test suite, a mutation robustness benchmark on rewritten documents,
+            and one-click grading against the organizers&apos; SDOC server.
           </p>
         </div>
         <div className="flex gap-2">
           <button onClick={runSelfTest} disabled={busy !== null} className="btn-primary">
             <Icon name="play" size={14}/>{busy === 'run' ? 'Running…' : 'Run self-test'}
+          </button>
+          <button onClick={runRobustness} disabled={busy !== null} className="btn-ghost">
+            <Icon name="shuffle" size={14}/>{busy === 'robust' ? 'Mutating…' : 'Robustness benchmark'}
           </button>
           <button onClick={score} disabled={busy !== null} className="btn-ghost">
             <Icon name="gauge" size={14}/>{busy === 'score' ? 'Scoring…' : 'Score vs SDOC server'}
@@ -184,11 +252,25 @@ export default function EvaluationPage() {
         </>
       )}
 
+      {robust && <RobustnessCard r={robust}/>}
+
       {scoreResult && (
         <M from={{ opacity: 0, transform: 'translateY(16px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5">
-          <h3 className="font-bold text-[15px] text-navy-900 mb-1 flex items-center gap-2"><Icon name="externalLink" size={15} className="text-brand-500"/>SDOC server response</h3>
-          <p className="text-xs text-slate-400 mb-3">POSTed the generated submission to <code className="font-mono">{sdocUrl}/submit</code></p>
-          <pre className="text-[11.5px] font-mono bg-navy-950 text-emerald-300 rounded-xl p-4 overflow-x-auto max-h-80">{scoreResult}</pre>
+          <h3 className="font-bold text-[15px] text-navy-900 mb-1 flex items-center gap-2"><Icon name="externalLink" size={15} className="text-brand-500"/>Organizer scoreboard</h3>
+          <p className="text-xs text-slate-400 mb-3">POSTed the generated submission to <code className="font-mono">{sdocUrl}/submit</code> — graded against the private reference set.</p>
+          {board?.final_score != null && (
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+              <Tile label="Final score" value={board.final_score.toFixed(4)} sub="0.3·S1 + 0.2·S3 + 0.5·E2E" tone="good"/>
+              {board.stage1 && <Tile label="Classification macro-F1" value={board.stage1.macro_f1.toFixed(3)} sub={`accuracy ${(board.stage1.accuracy * 100).toFixed(1)}%`}/>}
+              {board.stage3 && <Tile label="Defect F1" value={board.stage3.defect_f1.toFixed(3)} sub={`field-level F1 ${board.stage3.field_f1.toFixed(3)}`}/>}
+              {board.end_to_end && <Tile label="End-to-end" value={`${board.end_to_end.success}/${board.end_to_end.total}`} sub="defects caught, exact fields"/>}
+              {board.reliability && <Tile label="Escalations" value={`${board.reliability.pred_review}/${board.reliability.gold_review}`} sub={`precision ${board.reliability.escalation_precision.toFixed(2)} · recall ${board.reliability.escalation_recall.toFixed(2)}`} tone="warn"/>}
+            </div>
+          )}
+          <details>
+            <summary className="text-[11.5px] font-bold text-slate-400 cursor-pointer">Raw response</summary>
+            <pre className="mt-2 text-[11.5px] font-mono bg-navy-950 text-emerald-300 rounded-xl p-4 overflow-x-auto max-h-80">{scoreResult}</pre>
+          </details>
         </M>
       )}
 

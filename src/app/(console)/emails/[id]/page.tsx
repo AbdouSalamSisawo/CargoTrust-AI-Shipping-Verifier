@@ -8,6 +8,8 @@ import { CATEGORIES, CATEGORY_ORDER } from '@/data/taxonomy';
 import { Icon } from '@/components/icons';
 import { CategoryBadge, StatusBadge, ReasonBadge, ConfBar, Skeleton, useToast, M } from '@/components/ui';
 import { cx } from '@/lib/utils';
+import { METHOD_LABEL } from '@/lib/engine/trace';
+import { DecisionTrace, ReplyDraft } from '@/components/engine-views';
 
 function MatchChip({ m }: { m: boolean | null }) {
   if (m === null) return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold bg-slate-100 text-slate-400">n/a</span>;
@@ -59,7 +61,13 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
           <div className="text-[11px] text-slate-400">
             {att.kind === 'SI' ? 'Shipping Instruction' : att.kind === 'BL' ? 'Draft Bill of Lading' : 'Unidentified document'}
             {' · '}
-            {att.readable ? <span className="text-emerald-600 font-semibold">text extracted</span> : <span className="text-red-500 font-semibold">no text layer — escalated</span>}
+            {!att.readable ? (
+              <span className="text-red-500 font-semibold">{att.error ?? 'unreadable'}</span>
+            ) : att.method === 'pdf-ocr' ? (
+              <span className="text-amber-600 font-semibold">scan → OCR {att.ocrConfidence}%</span>
+            ) : (
+              <span className="text-emerald-600 font-semibold">{METHOD_LABEL[att.method ?? 'text'] ?? 'text extracted'}</span>
+            )}
           </div>
         </div>
         {att.kind !== 'other' && (
@@ -233,9 +241,9 @@ export default function EmailDetailPage() {
         </span>
         <div>
           <div className="text-[13.5px] font-bold text-ink-800">{email.summary}</div>
-          {email.signals && email.signals.length > 0 && (
-            <div className="text-[11.5px] text-slate-500 mt-1">Classification signals: {email.signals.join(' · ')}</div>
-          )}
+          {email.notes?.map((n) => (
+            <div key={n} className="text-[11.5px] text-slate-500 mt-1 flex items-center gap-1.5"><Icon name="info" size={12}/>{n}</div>
+          ))}
           {email.reviewed && (
             <div className="text-[11.5px] text-slate-500 mt-1">
               Reviewer action: <b className="capitalize">{email.reviewed.action}</b>{email.reviewed.note ? ` — “${email.reviewed.note}”` : ''}
@@ -289,11 +297,19 @@ export default function EmailDetailPage() {
 
         {/* right: comparison */}
         <div className="xl:col-span-2 space-y-5">
+          <DecisionTrace email={email}/>
           {isDoc && email.comparison && (
             <div className="card overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="font-bold text-[14px] text-navy-900 flex items-center gap-2"><Icon name="gitCompare" size={15} className="text-brand-500"/>SI ↔ BL comparison</h3>
+                  <h3 className="font-bold text-[14px] text-navy-900 flex items-center gap-2">
+                    <Icon name="gitCompare" size={15} className="text-brand-500"/>SI ↔ BL comparison
+                    {email.status === 'NEEDS_REVIEW' && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider rounded-md px-1.5 py-0.5 bg-amber-100 text-amber-700">
+                        {email.reviewReason === 'unreadable' ? 'OCR pre-check · not final' : 'partial · not final'}
+                      </span>
+                    )}
+                  </h3>
                   <p className="text-[11.5px] text-slate-400 mt-0.5">Seven canonical fields, SI as the reference document</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
@@ -320,12 +336,17 @@ export default function EmailDetailPage() {
                             <div className="text-[12.5px] font-bold text-ink-800 whitespace-nowrap">{row.label}</div>
                             <Evidence row={row}/>
                           </td>
-                          <td className={cx('px-4 py-3 text-[12.5px] font-mono', defect ? 'text-red-700 font-semibold' : 'text-slate-600')}>
-                            {row.si ?? <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className={cx('px-4 py-3 text-[12.5px] font-mono', defect ? 'text-red-700 font-semibold' : 'text-slate-600')}>
-                            {row.bl ?? <span className="text-slate-300">—</span>}
-                          </td>
+                          {(['si', 'bl'] as const).map((side) => {
+                            const doc = email.extracted?.[side];
+                            const derived = doc?.derived?.[row.field];
+                            const ph = doc?.placeholders?.[row.field];
+                            return (
+                              <td key={side} className={cx('px-4 py-3 text-[12.5px] font-mono', defect ? 'text-red-700 font-semibold' : 'text-slate-600')}>
+                                {row[side] ?? (ph ? <span className="text-amber-600">placeholder “{ph}”</span> : <span className="text-slate-300">—</span>)}
+                                {derived && <div className="text-[10.5px] font-sans font-medium text-slate-400 mt-0.5">{derived}</div>}
+                              </td>
+                            );
+                          })}
                           <td className="px-4 py-3"><MatchChip m={row.match}/></td>
                         </tr>
                       );
@@ -364,6 +385,8 @@ export default function EmailDetailPage() {
               </div>
             </div>
           )}
+
+          <ReplyDraft email={email}/>
 
           {/* review case */}
           {kase && (
