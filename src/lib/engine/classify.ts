@@ -85,7 +85,7 @@ const BODY_RULES: Rule[] = [
   ['GENERAL', /\b(automated notification|no action required|rpa bot)\b/i, 5, 'automated notification'],
   ['GENERAL', /\b(berthing report|update summary|list of outstanding b\/?l|loading completed|documents to follow|berthed on schedule)\b/i, 5, 'operational report'],
   ['GENERAL', /\b(happy|prosperous) new year\b|\boffice (resumes|closed)\b|\bpublic holiday\b/i, 5, 'office announcement'],
-  ['GENERAL', /\breminder\b[^.\n]{0,80}\b(all (pending|outstanding) shipments|outstanding list|by end of day)\b/i, 6, 'team-wide SLA reminder (not a specific SI)'],
+  ['GENERAL', /\breminder\b[^.\n]{0,80}\b(all (pending|outstanding) shipments|outstanding list|by end of day)\b/i, 8, 'team-wide SLA reminder (not a specific SI)'],
   ['GENERAL', /\b(vessel schedule|delay|congestion|advisory|circular|newsletter|bulletin)\b/i, 1.5, 'operational update'],
 ];
 
