@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Status } from '@/data/taxonomy';
 import { Icon } from '@/components/icons';
-import { CategoryBadge, StatusBadge, ReasonBadge, ConfBar, TextField, Skeleton, EmptyState, M } from '@/components/ui';
-import { cx } from '@/lib/utils';
+import { CategoryBadge, StatusBadge, ReasonBadge, TextField, Skeleton, EmptyState } from '@/components/ui';
 import { useSession, can } from '@/components/shell';
+import { cx } from '@/lib/utils';
 
 interface Row {
   id: string;
@@ -25,20 +26,34 @@ interface Row {
   aiRead: boolean;
 }
 
-const SOURCE_FILTERS: { key: string; label: string }[] = [
-  { key: 'ALL', label: 'All sources' },
-  { key: 'live', label: 'Uploads & email' },
-  { key: 'sample', label: 'Sample inbox' },
-];
-
-const STATUS_FILTERS: { key: string; label: string }[] = [
-  { key: 'ALL', label: 'All statuses' },
-  { key: 'OK', label: 'OK' },
-  { key: 'MISMATCH', label: 'Mismatch' },
+const STATUS_FILTERS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'OK', label: 'Match' },
+  { key: 'MISMATCH', label: 'Discrepancy' },
   { key: 'NEEDS_REVIEW', label: 'Needs review' },
 ];
+const SOURCE_FILTERS = [
+  { key: 'ALL', label: 'All sources' },
+  { key: 'live', label: 'Uploads and imported email' },
+  { key: 'sample', label: 'Sample emails' },
+];
+const PAGE_SIZE = 15;
 
-export default function EmailsPage() {
+function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-2 text-[12.5px] text-ink-500">
+      <span className="sr-only sm:not-sr-only whitespace-nowrap">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-md border border-slate-300 bg-white pl-2.5 pr-7 py-1.5 text-[13px] text-ink-800">
+        {children}
+      </select>
+    </label>
+  );
+}
+
+export default function InboxPage() {
+  const router = useRouter();
+  const { user } = useSession();
+  const [ready, setReady] = useState(false);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
@@ -47,149 +62,149 @@ export default function EmailsPage() {
   const [cat, setCat] = useState<'ALL' | Category>('ALL');
   const [status, setStatus] = useState('ALL');
   const [source, setSource] = useState('ALL');
-  const { user } = useSession();
+
+  // filters can arrive in the URL (links from the dashboard)
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const c = sp.get('category');
+    if (c && (CATEGORY_ORDER as string[]).includes(c)) setCat(c as Category);
+    const s = sp.get('status');
+    if (s && STATUS_FILTERS.some((f) => f.key === s)) setStatus(s);
+    const src = sp.get('source');
+    if (src && SOURCE_FILTERS.some((f) => f.key === src)) setSource(src);
+    setReady(true);
+  }, []);
 
   const load = useCallback(async () => {
     setRows(null);
-    const sp = new URLSearchParams({ q, category: cat, status, source, page: String(page), pageSize: '10' });
+    const sp = new URLSearchParams({ q, category: cat, status, source, page: String(page), pageSize: String(PAGE_SIZE) });
     const r = await fetch('/api/emails?' + sp.toString());
     const d = await r.json();
-    setRows(d.items);
-    setTotal(d.total);
-    setPages(d.pages);
+    setRows(d.items ?? []);
+    setTotal(d.total ?? 0);
+    setPages(d.pages ?? 1);
   }, [q, cat, status, source, page]);
 
   useEffect(() => {
-    const t = setTimeout(() => void load(), 250);
+    if (!ready) return;
+    const t = setTimeout(() => void load(), 200);
     return () => clearTimeout(t);
-  }, [load]);
+  }, [load, ready]);
 
-  const reset = () => { setQ(''); setCat('ALL'); setStatus('ALL'); setSource('ALL'); setPage(1); };
-  const changed = q !== '' || cat !== 'ALL' || status !== 'ALL' || source !== 'ALL';
+  const reset = () => { setQ(''); setCat('ALL'); setStatus('ALL'); setSource('ALL'); setPage(1); router.replace('/emails'); };
+  const filtered = q !== '' || cat !== 'ALL' || status !== 'ALL' || source !== 'ALL';
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Inbox</h1>
-          <p className="text-sm text-slate-400 mt-1">Every email and uploaded check, classified and verified by the engine.</p>
+          <h1 className="page-title">Inbox</h1>
+          <p className="page-sub">Every email and uploaded check, with the result of its document check</p>
         </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-[12.5px] font-semibold text-slate-400 mr-1">{rows ? `${total} matching` : 'Loading…'}</span>
+        <div className="flex gap-2">
           <a href={`/api/export${source === 'live' ? '?source=live' : ''}`} className="btn-ghost btn-sm"><Icon name="download" size={14}/>Export CSV</a>
-          {can(user, 'operator') && <Link href="/new" className="btn-primary btn-sm"><Icon name="mailImport" size={14}/>Add emails / documents</Link>}
+          {can(user, 'operator') && <Link href="/new" className="btn-primary btn-sm"><Icon name="upload" size={14}/>Add documents</Link>}
         </div>
       </div>
 
-      {/* filters */}
-      <div className="card p-4 flex flex-col lg:flex-row gap-3 lg:items-center">
-        <div className="w-full lg:w-72">
+      <div className="card overflow-hidden">
+        {/* filters */}
+        <div className="p-3 border-b border-line flex flex-col lg:flex-row lg:items-center gap-3">
           <TextField
             compact
+            className="w-full lg:w-72"
             icon={<Icon name="search" size={15}/>}
-            placeholder="Search subject, sender, ID…"
+            placeholder="Search subject, sender or ID"
+            aria-label="Search the inbox"
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}
           />
+          <div className="inline-flex rounded-md border border-slate-300 p-0.5 bg-slate-50 self-start" role="group" aria-label="Filter by result">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => { setStatus(s.key); setPage(1); }}
+                aria-pressed={status === s.key}
+                className={cx('px-2.5 py-1 rounded text-[12.5px] font-medium transition-colors', status === s.key ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 lg:ml-auto">
+            <Select label="Type" value={cat} onChange={(v) => { setCat(v as 'ALL' | Category); setPage(1); }}>
+              <option value="ALL">All types</option>
+              {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{CATEGORIES[c].label}</option>)}
+            </Select>
+            <Select label="Source" value={source} onChange={(v) => { setSource(v); setPage(1); }}>
+              {SOURCE_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </Select>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 flex-1">
-          <button
-            onClick={() => { setCat('ALL'); setPage(1); }}
-            className={cx('px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors', cat === 'ALL' ? 'bg-navy-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100')}
-          >
-            All
-          </button>
-          {CATEGORY_ORDER.map((c) => (
-            <button
-              key={c}
-              onClick={() => { setCat(c); setPage(1); }}
-              className={cx('px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors inline-flex items-center gap-1.5 border', cat === c ? 'text-white border-transparent' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-100')}
-              style={cat === c ? { background: CATEGORIES[c].color } : undefined}
-            >
-              <Icon name={CATEGORIES[c].icon} size={12}/>{CATEGORIES[c].label}
-            </button>
-          ))}
+        <div className="px-4 py-2 border-b border-line flex items-center justify-between text-[12.5px] text-ink-400">
+          <span aria-live="polite">{rows ? `${total.toLocaleString()} item${total === 1 ? '' : 's'}` : 'Loading'}</span>
+          {filtered && <button onClick={reset} className="font-medium text-brand-600 hover:underline">Clear filters</button>}
         </div>
-        <select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-bold text-slate-500">
-          {SOURCE_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-        </select>
-        <div className="flex gap-1.5">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => { setStatus(s.key); setPage(1); }}
-              className={cx('px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors', status === s.key ? 'bg-navy-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100')}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* table */}
-      <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px]">
-            <thead className="bg-slate-50/80 border-b border-slate-100">
-              <tr>
+          <table className="w-full min-w-[820px]">
+            <thead>
+              <tr className="border-b border-line">
                 <th className="th">Email</th>
-                <th className="th">Category</th>
+                <th className="th">Type</th>
                 <th className="th">Result</th>
-                <th className="th">Confidence</th>
-                <th className="th w-8"/>
+                <th className="th w-8"><span className="sr-only">Open</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-line">
               {rows === null
                 ? [...Array(8)].map((_, i) => (
-                    <tr key={i}><td colSpan={5} className="px-4 py-3"><Skeleton className="h-10"/></td></tr>
+                    <tr key={i}><td colSpan={4} className="px-4 py-3"><Skeleton className="h-9"/></td></tr>
                   ))
                 : rows.length === 0
                   ? (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={4}>
                         <EmptyState
                           icon="search"
-                          tint="#64748B"
-                          title="No emails match your filters"
-                          sub="Try a different search term or clear the filters."
-                          action={<button onClick={reset} className="btn-ghost btn-sm">Clear filters</button>}
+                          title="No items match these filters"
+                          sub="Try another search term or clear the filters."
+                          action={filtered ? <button onClick={reset} className="btn-ghost btn-sm">Clear filters</button> : undefined}
                         />
                       </td>
                     </tr>
                   )
-                : rows.map((e, i) => (
-                    <tr key={e.id} className="group hover:bg-brand-50/40 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <M from={{ opacity: 0, y: 6 }} to={{ opacity: 1, y: 0 }} dur={0.3} delay={Math.min(i * 0.03, 0.3)}>
-                          <Link href={`/emails/${e.id}`} className="block min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-[11px] text-slate-400 shrink-0">{e.id}</span>
-                              {e.hasAttachments && <Icon name="paperclip" size={12} className="text-slate-300 shrink-0"/>}
-                              {e.source !== 'sample' && <span className="text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 bg-brand-50 text-brand-600">{e.source === 'upload' ? 'upload' : 'email'}</span>}
-                              {e.aiRead && <span className="text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 bg-ai-50 text-ai-600">AI read</span>}
-                              {e.receivedAt && <span className="text-[10.5px] text-slate-300 tabular-nums">{new Date(e.receivedAt).toLocaleDateString()}</span>}
-                            </div>
-                            <div className="text-[13px] font-semibold text-ink-800 truncate group-hover:text-brand-600 transition-colors max-w-[420px]">{e.subject}</div>
-                            <div className="text-[11.5px] text-slate-400 truncate max-w-[420px]">{e.from}</div>
-                          </Link>
-                        </M>
+                  : rows.map((e) => (
+                    <tr key={e.id} className="group hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => router.push(`/emails/${encodeURIComponent(e.id)}`)}>
+                      <td className="px-4 py-3 max-w-0 w-[52%]">
+                        <Link href={`/emails/${encodeURIComponent(e.id)}`} className="block min-w-0" onClick={(ev) => ev.stopPropagation()}>
+                          <div className="text-[13.5px] font-medium text-ink-900 truncate group-hover:text-brand-700">{e.subject}</div>
+                          <div className="flex items-center gap-2 mt-0.5 text-[12px] text-ink-400 min-w-0">
+                            <span className="font-mono shrink-0">{e.id}</span>
+                            <span className="truncate">{e.from}</span>
+                            {e.hasAttachments && <Icon name="paperclip" size={12} className="shrink-0"/>}
+                            {e.source !== 'sample' && <span className="tag bg-brand-50 text-brand-700 shrink-0">{e.source === 'upload' ? 'Upload' : 'Email'}</span>}
+                            {e.aiRead && <span className="tag bg-ai-50 text-ai-700 shrink-0">AI read</span>}
+                            {e.receivedAt && <span className="tabular-nums shrink-0">{new Date(e.receivedAt).toLocaleDateString()}</span>}
+                          </div>
+                        </Link>
                       </td>
-                      <td className="px-4 py-3.5"><CategoryBadge cat={e.category}/></td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={e.status} size="sm"/>
+                      <td className="px-4 py-3"><CategoryBadge cat={e.category}/></td>
+                      <td className="px-4 py-3 max-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {e.category === 'BL_COMPARISON' && !e.awaitingDocuments && <StatusBadge status={e.status} size="sm"/>}
                           {e.reviewReason ? <ReasonBadge reason={e.reviewReason as never}/> : e.defectCount > 0 ? (
-                            <span className="text-[11px] font-bold text-red-500 whitespace-nowrap">{e.defectCount} field{e.defectCount > 1 ? 's' : ''}</span>
+                            <span className="text-[12px] text-ink-500 whitespace-nowrap">{e.defectCount} field{e.defectCount > 1 ? 's' : ''}</span>
                           ) : e.awaitingDocuments ? (
-                            <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5">awaiting docs</span>
+                            <span className="tag bg-slate-100 text-ink-500">Awaiting documents</span>
+                          ) : e.category !== 'BL_COMPARISON' ? (
+                            <span className="text-[12px] text-ink-400">No check needed</span>
                           ) : null}
                         </div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[260px] mt-1">{e.summary}</div>
+                        <div className="text-[12px] text-ink-400 truncate mt-1">{e.summary}</div>
                       </td>
-                      <td className="px-4 py-3.5"><ConfBar v={e.confidence}/></td>
-                      <td className="px-2 py-3.5">
-                        <Icon name="chevronRight" size={15} className="text-slate-300 group-hover:text-brand-400 group-hover:translate-x-0.5 transition-all"/>
+                      <td className="px-3 py-3">
+                        <Icon name="chevronRight" size={15} className="text-ink-300 group-hover:text-ink-500"/>
                       </td>
                     </tr>
                   ))}
@@ -197,17 +212,17 @@ export default function EmailsPage() {
           </table>
         </div>
         {rows && pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-            <span className="text-[12px] text-slate-400 font-semibold">Page {page} of {pages}</span>
+          <nav className="flex items-center justify-between px-4 py-2.5 border-t border-line" aria-label="Pagination">
+            <span className="text-[12.5px] text-ink-400">Page {page} of {pages}</span>
             <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="btn-ghost btn-sm disabled:opacity-40">
-                <Icon name="chevronLeft" size={14}/>Prev
+              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="btn-ghost btn-sm">
+                <Icon name="chevronLeft" size={14}/>Previous
               </button>
-              <button disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))} className="btn-ghost btn-sm disabled:opacity-40">
+              <button disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))} className="btn-ghost btn-sm">
                 Next<Icon name="chevronRight" size={14}/>
               </button>
             </div>
-          </div>
+          </nav>
         )}
       </div>
     </div>
