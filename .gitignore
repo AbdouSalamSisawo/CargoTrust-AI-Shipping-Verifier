@@ -20,3 +20,7 @@ next-env.d.ts
 Thumbs.db
 .vscode/
 .idea/
+
+# local-only tooling (organizer scorer incl. answer key) and engine output
+/.local/
+/out/
