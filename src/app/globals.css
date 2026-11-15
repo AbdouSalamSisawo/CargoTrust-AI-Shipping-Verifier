@@ -2,35 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .card { @apply bg-white rounded-2xl shadow-card border border-slate-100; }
-  .input { @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink-800 placeholder-slate-400 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10; }
-  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-brand-500 shadow-glowBrand transition-all duration-200 hover:brightness-110 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:pointer-events-none select-none; }
-  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink-700 bg-white border border-slate-200 transition-all duration-200 hover:border-brand-300 hover:text-brand-600 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none select-none; }
-  .btn-danger-o { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-600 bg-white border border-red-200 transition-all duration-200 hover:bg-red-50 hover:-translate-y-px active:translate-y-0 select-none; }
-  .btn-emerald { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-glowEmerald transition-all duration-200 hover:brightness-110 hover:-translate-y-px active:translate-y-0 select-none; }
-  .btn-sm { @apply px-3 py-1.5 text-[13px] rounded-lg; }
-  .th { @apply px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap; }
-  .text-grad { @apply bg-gradient-to-r from-brand-500 via-brand-400 to-aqua-400 bg-clip-text text-transparent; }
+/* ------------------------------------------------------------------ base */
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-canvas text-ink-800 antialiased; font-feature-settings: 'tnum' 0; }
+  h1, h2, h3, h4 { @apply text-ink-900; }
+  :focus-visible { outline: 2px solid #2366AA; outline-offset: 2px; border-radius: 4px; }
+  ::selection { background: rgba(35, 102, 170, .18); }
 }
 
-html,
-body { height: 100%; }
+/* ------------------------------------------------------------ components */
+@layer components {
+  /* surfaces */
+  .card { @apply bg-white rounded-lg border border-line shadow-card; }
+  .panel-title { @apply text-[14px] font-semibold text-ink-900 flex items-center gap-2; }
+  .panel-sub { @apply text-[12.5px] text-ink-400 mt-0.5; }
 
-body { background: #F4F7FB; -webkit-font-smoothing: antialiased; }
+  /* page headings (console) */
+  .page-title { @apply text-[20px] leading-7 font-semibold text-ink-900 tracking-tight; }
+  .page-sub { @apply text-[13px] text-ink-400 mt-0.5; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em]; }
 
-::selection { background: #2563eb22; }
+  /* form controls */
+  .input { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13.5px] text-ink-800 placeholder-ink-300 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15; }
 
-::-webkit-scrollbar { width: 9px; height: 9px; }
+  /* buttons: one height scale, flat fills, no lift or glow */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-[13.5px] font-medium leading-5 transition-colors duration-150 select-none whitespace-nowrap disabled:opacity-50 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800; }
+  .btn-ghost { @apply btn bg-white text-ink-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400; }
+  .btn-quiet { @apply btn text-ink-600 hover:bg-slate-100; }
+  .btn-danger-o { @apply btn bg-white text-red-700 border border-red-200 hover:bg-red-50; }
+  .btn-emerald { @apply btn bg-emerald-700 text-white hover:bg-emerald-800; }
+  .btn-sm { @apply px-2.5 py-1.5 text-[12.5px] gap-1.5; }
+
+  /* tables */
+  .th { @apply px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-400 whitespace-nowrap bg-slate-50/80; }
+  .td { @apply px-4 py-3 text-[13px] text-ink-700 align-top; }
+
+  /* small labels */
+  .tag { @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide whitespace-nowrap; }
+
+  .text-grad { @apply text-brand-600; }
+}
+
+/* ------------------------------------------------------------- utilities */
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c0cbdc; border-radius: 99px; border: 2px solid #f4f7fb; }
-::-webkit-scrollbar-thumb:hover { background: #8c9db8; }
+::-webkit-scrollbar-thumb { background: #C5CED8; border-radius: 99px; border: 2px solid #F3F5F7; }
+::-webkit-scrollbar-thumb:hover { background: #96A4B4; }
 
-.dash-anim { stroke-dasharray: 6 9; animation: dashmove 1.5s linear infinite; }
-.node-ping { transform-origin: center; transform-box: fill-box; animation: nodePing 2.4s ease-out infinite; }
-.toastbar { animation: toastbar 3.8s linear forwards; }
-.text-grad-l { background: linear-gradient(90deg, #60a5fa, #22d3ee); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.scan-bar { animation: scanline 2.6s ease-in-out infinite; }
+.dash-anim { stroke-dasharray: 5 9; animation: dashmove 1.6s linear infinite; }
+.toastbar { animation: toastbar 4.2s linear forwards; }
+.text-grad-l { color: #79CBC2; }
 
-input[type='range'] { accent-color: #2563eb; }
-kbd { font-family: 'JetBrains Mono', monospace; }
+input[type='range'] { accent-color: #1B5592; }
+kbd { font-family: 'IBM Plex Mono', monospace; }
+
+/* Respect the reduced-motion preference everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

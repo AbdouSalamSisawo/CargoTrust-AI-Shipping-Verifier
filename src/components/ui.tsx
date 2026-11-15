@@ -12,7 +12,7 @@ export function M({
   as = 'div',
   from = {},
   to = {},
-  dur = 0.55,
+  dur = 0.35,
   delay = 0,
   style,
   className,
@@ -30,11 +30,17 @@ export function M({
   [k: string]: unknown;
 }) {
   const [on, setOn] = useState(false);
+  const [still, setStill] = useState(false);
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setStill(true);
+      setOn(true);
+      return;
+    }
     const id = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
     return () => cancelAnimationFrame(id);
   }, []);
-  const st = Object.assign({}, style, on ? to : from, { transition: `all ${dur}s ${EASE} ${delay}s` }) as React.CSSProperties;
+  const st = Object.assign({}, style, on ? to : from, still ? {} : { transition: `opacity ${dur}s ${EASE} ${delay}s, transform ${dur}s ${EASE} ${delay}s, width ${dur}s ${EASE} ${delay}s` }) as React.CSSProperties;
   return React.createElement(as, Object.assign({ className, style: st }, rest), children);
 }
 
@@ -61,40 +67,42 @@ export function StatusBadge({ status, size = 'md' }: { status: Status; size?: 's
   const sm = size === 'sm';
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full font-bold whitespace-nowrap shrink-0"
-      style={{ background: s.bg, color: s.color, padding: sm ? '3px 9px' : '4.5px 11px', fontSize: sm ? 11 : 12 }}
+      className={cx('inline-flex items-center gap-1 rounded font-semibold whitespace-nowrap shrink-0', sm ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-0.5 text-[12px]')}
+      style={{ background: s.bg, color: s.color }}
     >
-      <Icon name={s.icon} size={sm ? 12 : 13} strokeWidth={2.4}/>{s.label}
+      <Icon name={s.icon} size={sm ? 11 : 12} strokeWidth={2.4}/>{s.label}
     </span>
   );
 }
 
+/** Category is secondary information: neutral text with a small colour cue. */
 export function CategoryBadge({ cat }: { cat: Category }) {
   const c = CATEGORIES[cat] ?? CATEGORIES.GENERAL;
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-bold whitespace-nowrap shrink-0" style={{ background: c.color + '14', color: c.color }}>
-      <Icon name={c.icon} size={12.5} strokeWidth={2.4}/>{c.label}
+    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-600 whitespace-nowrap shrink-0">
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c.color }}/>{c.label}
     </span>
   );
 }
 
 export function ReasonBadge({ reason }: { reason: ReviewReason }) {
   const r = REVIEW_REASONS[reason];
+  if (!r) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-bold whitespace-nowrap shrink-0" style={{ background: r.bg, color: r.color }}>
-      <Icon name={r.icon} size={12.5} strokeWidth={2.4}/>{r.label}
+    <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[11.5px] font-medium text-amber-800 whitespace-nowrap shrink-0">
+      <Icon name={r.icon} size={11.5} strokeWidth={2.2}/>{r.label}
     </span>
   );
 }
 
 export function ConfBar({ v }: { v: number }) {
-  const c = v >= 0.9 ? '#10B981' : v >= 0.7 ? '#F59E0B' : '#EF4444';
+  const c = v >= 0.9 ? '#15803D' : v >= 0.7 ? '#B45309' : '#B42318';
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-14 h-1.5 rounded-full bg-slate-100 overflow-hidden shrink-0">
+    <div className="flex items-center gap-2" title="Classifier confidence">
+      <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden shrink-0">
         <div className="h-full rounded-full" style={{ width: `${Math.round(v * 100)}%`, background: c }}/>
       </div>
-      <span className="text-[12px] font-bold tabular-nums whitespace-nowrap" style={{ color: c }}>{Math.round(v * 100)}%</span>
+      <span className="text-[12px] font-medium tabular-nums whitespace-nowrap text-ink-500">{Math.round(v * 100)}%</span>
     </div>
   );
 }
@@ -109,18 +117,18 @@ export function TextField({ icon, trailing, compact = false, className = '', ...
   return (
     <div
       className={cx(
-        'flex items-stretch rounded-xl border border-slate-200 bg-white transition-all duration-200',
-        'focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10 overflow-hidden',
+        'flex items-stretch rounded-md border border-slate-300 bg-white transition-colors duration-150',
+        'focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/15 overflow-hidden',
         className,
       )}
     >
-      {icon && <span className="flex items-center pl-3.5 pr-2.5 text-slate-300 pointer-events-none shrink-0" aria-hidden="true">{icon}</span>}
+      {icon && <span className="flex items-center pl-3 pr-2 text-ink-300 pointer-events-none shrink-0" aria-hidden="true">{icon}</span>}
       <input
         className={cx(
-          'flex-1 min-w-0 bg-transparent border-0 text-sm text-ink-800 placeholder-slate-400 outline-none',
-          compact ? 'py-2' : 'py-2.5',
-          icon ? 'pl-0' : 'pl-3.5',
-          trailing ? 'pr-1.5' : 'pr-3.5',
+          'flex-1 min-w-0 bg-transparent border-0 text-[13.5px] text-ink-800 placeholder-ink-300 outline-none focus-visible:outline-none',
+          compact ? 'py-1.5' : 'py-2',
+          icon ? 'pl-0' : 'pl-3',
+          trailing ? 'pr-1.5' : 'pr-3',
         )}
         {...inputProps}
       />
@@ -129,15 +137,17 @@ export function TextField({ icon, trailing, compact = false, className = '', ...
   );
 }
 
-export function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       onClick={() => onChange(!on)}
-      className={cx('relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0', on ? 'bg-gradient-to-r from-brand-500 to-aqua-500' : 'bg-slate-200')}
-      aria-pressed={on}
+      className={cx('relative w-10 h-[22px] rounded-full transition-colors duration-150 shrink-0', on ? 'bg-brand-600' : 'bg-slate-300')}
     >
-      <span className={cx('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200', on && 'translate-x-5')}/>
+      <span className={cx('absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-150', on && 'translate-x-[18px]')}/>
     </button>
   );
 }
@@ -146,35 +156,32 @@ export function SettingRow({ title, desc, on, onChange }: { title: string; desc:
   return (
     <div className="flex items-center justify-between gap-4 py-3.5 border-b border-slate-100 last:border-0">
       <div className="min-w-0">
-        <div className="text-[13.5px] font-semibold text-ink-800">{title}</div>
-        <div className="text-[12px] text-slate-400 mt-0.5">{desc}</div>
+        <div className="text-[13.5px] font-medium text-ink-800">{title}</div>
+        <div className="text-[12.5px] text-ink-400 mt-0.5">{desc}</div>
       </div>
-      <Switch on={on} onChange={onChange}/>
+      <Switch on={on} onChange={onChange} label={title}/>
     </div>
   );
 }
 
 /* ---------- states ---------- */
-export function EmptyState({ icon = 'inbox', tint = '#2563EB', title, sub, action }: {
+export function EmptyState({ icon = 'inbox', tint = '#4D6177', title, sub, action }: {
   icon?: string; tint?: string; title: string; sub?: string; action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-14 px-6">
-      <div className="relative mb-5">
-        <div className="absolute inset-0 rounded-3xl blur-xl opacity-30 pointer-events-none" style={{ background: tint }}/>
-        <div className="relative w-16 h-16 rounded-3xl flex items-center justify-center" style={{ background: tint + '18', color: tint }}>
-          <Icon name={icon} size={30} strokeWidth={1.8}/>
-        </div>
+    <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+      <div className="w-11 h-11 rounded-lg flex items-center justify-center mb-3.5 border border-line bg-slate-50" style={{ color: tint }}>
+        <Icon name={icon} size={20} strokeWidth={1.8}/>
       </div>
-      <h3 className="font-display text-lg font-bold text-navy-900">{title}</h3>
-      {sub && <p className="text-sm text-slate-400 mt-1.5 max-w-sm">{sub}</p>}
+      <h3 className="text-[15px] font-semibold text-ink-900">{title}</h3>
+      {sub && <p className="text-[13px] text-ink-400 mt-1 max-w-sm">{sub}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={cx('animate-pulse rounded-xl bg-slate-200/60', className)}/>;
+  return <div className={cx('animate-pulse rounded-md bg-slate-200/70', className)}/>;
 }
 
 /* ---------- charts (dependency-free SVG) ---------- */
@@ -299,11 +306,11 @@ const ToastCtx = createContext<ToastFn>(() => undefined);
 export const useToast = () => useContext(ToastCtx);
 
 const TOAST_META: Record<Toast['type'], { icon: string; c: string }> = {
-  success: { icon: 'checkCircle', c: '#10B981' },
-  danger: { icon: 'xCircle', c: '#EF4444' },
-  warn: { icon: 'alertTriangle', c: '#F59E0B' },
-  info: { icon: 'info', c: '#2563EB' },
-  ai: { icon: 'sparkles', c: '#8B5CF6' },
+  success: { icon: 'checkCircle', c: '#15803D' },
+  danger: { icon: 'alertCircle', c: '#B42318' },
+  warn: { icon: 'alertTriangle', c: '#B45309' },
+  info: { icon: 'info', c: '#1B5592' },
+  ai: { icon: 'info', c: '#2D6280' },
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -318,23 +325,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastCtx.Provider value={toast}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[80] flex flex-col gap-3 w-[340px] max-w-[calc(100vw-40px)]">
+      <div className="fixed bottom-5 right-5 z-[80] flex flex-col gap-2.5 w-[340px] max-w-[calc(100vw-40px)]" role="status" aria-live="polite">
         {toasts.map((t) => {
           const m = TOAST_META[t.type];
           return (
-            <M key={t.id} from={{ opacity: 0, transform: 'translateX(60px) scale(.96)' }} to={{ opacity: 1, transform: 'none' }} dur={0.35}
-              className="card p-4 flex items-start gap-3 shadow-lift relative overflow-hidden">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: m.c + '18', color: m.c }}>
-                <Icon name={m.icon} size={16} strokeWidth={2.3}/>
-              </div>
+            <M key={t.id} from={{ opacity: 0, transform: 'translateY(8px)' }} to={{ opacity: 1, transform: 'none' }} dur={0.2}
+              className="bg-white rounded-md border border-line border-l-[3px] p-3.5 flex items-start gap-2.5 shadow-lift relative overflow-hidden" style={{ borderLeftColor: m.c }}>
+              <span className="shrink-0 mt-px" style={{ color: m.c }}><Icon name={m.icon} size={16} strokeWidth={2.2}/></span>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-bold text-ink-900 leading-snug">{t.title}</div>
-                {t.desc && <div className="text-[12px] text-slate-500 mt-0.5 leading-snug">{t.desc}</div>}
+                <div className="text-[13px] font-semibold text-ink-900 leading-snug">{t.title}</div>
+                {t.desc && <div className="text-[12.5px] text-ink-500 mt-0.5 leading-snug break-words">{t.desc}</div>}
               </div>
-              <button onClick={() => dismiss(t.id)} className="text-slate-300 hover:text-slate-500 transition-colors shrink-0" aria-label="Dismiss">
+              <button onClick={() => dismiss(t.id)} className="text-ink-300 hover:text-ink-600 transition-colors shrink-0" aria-label="Dismiss notification">
                 <Icon name="x" size={14}/>
               </button>
-              <div className="absolute bottom-0 left-0 h-[3px] rounded-full toastbar pointer-events-none" style={{ background: m.c }}/>
             </M>
           );
         })}

@@ -89,28 +89,17 @@ export function Icon({ name, size = 18, className = '', strokeWidth = 2 }: { nam
 }
 
 /* Official Google "G" mark */
-export function LogoMark({ size = 40 }: { size?: number }) {
+/**
+ * Brand mark: a shipping container in side elevation with a check mark,
+ * the thing being verified and the verdict. Flat colours, legible at 16 px.
+ */
+export function LogoMark({ size = 32, light = false }: { size?: number; light?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className="shrink-0">
-      <defs>
-        <linearGradient id="lgCh" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2563EB"/><stop offset="1" stopColor="#22D3EE"/>
-        </linearGradient>
-        <linearGradient id="lgCir" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#1E3A8A"/><stop offset="1" stopColor="#2563EB"/>
-        </linearGradient>
-      </defs>
-      <path d="M14 12 6 24l8 12" stroke="url(#lgCh)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M34 12l8 12-8 12" stroke="url(#lgCh)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="24" cy="24" r="13" fill="url(#lgCir)"/>
-      <rect x="18.5" y="17.5" width="3.4" height="3.4" rx=".7" fill="#fff"/>
-      <rect x="22.6" y="15.6" width="3.4" height="5.3" rx=".7" fill="#93C5FD"/>
-      <rect x="26.7" y="17.5" width="3.4" height="3.4" rx=".7" fill="#fff"/>
-      <path d="M16.6 24.4h14.8l-2.4 4.4h-10z" fill="#fff"/>
-      <path d="M17.5 31.6c2.2 0 2.2 1.4 4.4 1.4s2.2-1.4 4.4-1.4 2.2 1.4 4.3 1.4" stroke="#67E8F9" strokeWidth="1.7" strokeLinecap="round" fill="none"/>
-      <path d="M33.5 12.5a15 15 0 0 1 3.2 8.5" stroke="#22D3EE" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-      <circle cx="35.2" cy="13.6" r="1.9" fill="#67E8F9"/>
-      <path d="m27.8 13.6 1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" fill="#fff"/>
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className="shrink-0" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill={light ? '#FFFFFF' : '#0F2034'}/>
+      <rect x="5.5" y="10" width="21" height="13" rx="1.4" stroke={light ? '#0F2034' : '#FFFFFF'} strokeWidth="1.8"/>
+      <path d="M10 13v7M14 13v7M18 13v7" stroke={light ? '#0F2034' : '#FFFFFF'} strokeWidth="1.5" strokeLinecap="round" opacity=".55"/>
+      <path d="m19.6 16.4 2.4 2.4 5.2-5.6" stroke="#3AAEA3" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -122,17 +111,12 @@ export function Wordmark({ size = 'md', light = false }: { size?: 'md' | 'lg'; l
   return (
     <span
       className={cx(
-        'font-display font-bold tracking-tight leading-none whitespace-nowrap select-none',
-        big ? 'text-4xl' : 'text-[17px]',
-        light ? 'text-white' : 'text-navy-900',
+        'font-semibold tracking-tight leading-none whitespace-nowrap select-none',
+        big ? 'text-[28px]' : 'text-[16px]',
+        light ? 'text-white' : 'text-ink-900',
       )}
     >
-      CargoTrust<span
-        className="ml-[0.3em] inline-flex items-center rounded-[0.3em] bg-gradient-to-br from-brand-500 to-aqua-500 text-white font-extrabold tracking-normal shadow-glowBrand"
-        style={{ fontSize: '0.66em', lineHeight: 1, padding: '0.2em 0.38em 0.16em' }}
-      >
-        AI
-      </span>
+      CargoTrust<span className={cx('ml-1 font-medium', light ? 'text-aqua-300' : 'text-brand-500')}>AI</span>
     </span>
   );
 }
@@ -141,12 +125,12 @@ export function Logo({ size = 'md', light = false, sub = false }: { size?: 'md' 
   const big = size === 'lg';
   return (
     <div className="flex items-center gap-2.5 min-w-0">
-      <LogoMark size={big ? 52 : 34}/>
+      <LogoMark size={big ? 40 : 28} light={false}/>
       <div className="leading-tight min-w-0">
         <Wordmark size={size} light={light}/>
         {sub && (
-          <div className={cx('text-[9.5px] font-bold uppercase tracking-[0.16em] mt-1 truncate', light ? 'text-white/50' : 'text-slate-400')}>
-            Document Verification
+          <div className={cx('text-[10.5px] font-medium mt-1 truncate', light ? 'text-white/55' : 'text-ink-400')}>
+            Shipping document verification
           </div>
         )}
       </div>

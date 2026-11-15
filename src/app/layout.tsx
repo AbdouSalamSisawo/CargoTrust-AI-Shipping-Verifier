@@ -1,31 +1,32 @@
 import type { Metadata, Viewport } from 'next';
+// Self-hosted fonts: the console works on networks without internet access.
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-sans/700.css';
+import '@fontsource/ibm-plex-sans-condensed/500.css';
+import '@fontsource/ibm-plex-sans-condensed/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CargoTrust AI — Intelligent Shipping Document Verification',
+  title: { default: 'CargoTrust AI · Shipping document verification', template: '%s · CargoTrust AI' },
   description:
-    'CargoTrust AI reads your operations inbox, classifies every email, extracts SI & BL shipment fields, and catches discrepancies before a draft Bill of Lading is finalized — with a human always in the loop.',
+    'CargoTrust AI compares each Shipping Instruction with its draft Bill of Lading, flags discrepancies in seven critical fields and sends anything uncertain to a person for review.',
   icons: { icon: '/favicon.svg' },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0A1A2F',
+  themeColor: '#091626',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="font-sans text-ink-800">{children}</body>
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

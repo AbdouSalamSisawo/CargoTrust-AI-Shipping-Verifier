@@ -3,7 +3,7 @@
  * Every number shown in the console is computed from processed data, never
  * hard-coded.
  */
-import { CATEGORY_ORDER, FIELDS, type Category, type FieldKey, type Status } from '@/data/taxonomy';
+import { CATEGORIES, CATEGORY_ORDER, FIELDS, type Category, type FieldKey, type Status } from '@/data/taxonomy';
 import type { DBShape, EvalRun, ProcessedEmail } from './types';
 import { processEmail } from './engine/pipeline';
 import { SELF_TEST_CASES } from './engine/selftest';
@@ -27,6 +27,11 @@ export interface DashboardMetrics {
   feed: { id: string; subject: string; from: string; status: Status; category: Category; defectCount: number }[];
   attention: { id: string; subject: string; from: string; status: Status; reason?: string | null }[];
   kpis: { icon: string; label: string; value: number; note: string; tone: 'good' | 'bad' | 'neutral' }[];
+  /** Items from the bundled sample inbox (demonstration data), and items added by users. */
+  sampleCount: number;
+  liveCount: number;
+  /** Most recent uploads / imports (newest first). */
+  recent: { id: string; subject: string; from: string; status: Status; category: Category; defectCount: number; reason: string | null; receivedAt: string | null; source: string }[];
 }
 
 const pct = (a: number, b: number) => (b === 0 ? 0 : Math.round((a / b) * 1000) / 10);
@@ -69,12 +74,22 @@ export function computeMetrics(db: DBShape): DashboardMetrics {
     .slice(0, 6)
     .map((e) => ({ id: e.id, subject: e.subject, from: e.from, status: e.status, reason: e.reviewReason ?? null }));
 
+  const live = emails.filter((e) => (e.source ?? 'sample') !== 'sample');
+  const recent = live
+    .slice()
+    .sort((a, b) => b.seq - a.seq)
+    .slice(0, 8)
+    .map((e) => ({ id: e.id, subject: e.subject, from: e.from, status: e.status, category: e.category, defectCount: e.defectFields.length, reason: e.reviewReason ?? null, receivedAt: e.receivedAt ?? null, source: e.source ?? 'sample' }));
+
   return {
+    sampleCount: total - live.length,
+    liveCount: live.length,
+    recent,
     total,
     byCategory: CATEGORY_ORDER.map((c) => ({
       cat: c,
-      label: c.replace(/_/g, ' '),
-      color: { BL_COMPARISON: '#2563EB', SI_REQUEST: '#06B6D4', INVOICE_QUERY: '#8B5CF6', GENERAL: '#10B981', SPAM: '#F59E0B' }[c],
+      label: CATEGORIES[c].label,
+      color: CATEGORIES[c].color,
       count: catCounts.get(c) ?? 0,
       pct: pct(catCounts.get(c) ?? 0, total),
     })),

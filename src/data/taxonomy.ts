@@ -8,27 +8,28 @@ export const PRODUCT = {
 };
 
 export const CATEGORIES = {
-  BL_COMPARISON: { label: 'BL Comparison', color: '#2563EB', icon: 'gitCompare' },
-  SI_REQUEST: { label: 'SI Request', color: '#06B6D4', icon: 'fileText' },
-  INVOICE_QUERY: { label: 'Invoice Query', color: '#8B5CF6', icon: 'receipt' },
-  GENERAL: { label: 'General', color: '#10B981', icon: 'mail' },
-  SPAM: { label: 'Spam', color: '#F59E0B', icon: 'alertTriangle' },
+  BL_COMPARISON: { label: 'Document check', color: '#2366AA', icon: 'gitCompare' },
+  SI_REQUEST: { label: 'SI request', color: '#0E7871', icon: 'fileText' },
+  INVOICE_QUERY: { label: 'Invoice query', color: '#7A5C1E', icon: 'receipt' },
+  GENERAL: { label: 'General', color: '#4D6177', icon: 'mail' },
+  SPAM: { label: 'Spam', color: '#9A3412', icon: 'alertTriangle' },
 } as const;
 export type Category = keyof typeof CATEGORIES;
 export const CATEGORY_ORDER = Object.keys(CATEGORIES) as Category[];
 
+/** Outcome of a document check. "Match" means the seven fields agree; it is not a statement about authenticity. */
 export const STATUS = {
-  OK: { label: 'OK', color: '#059669', bg: '#ECFDF5', icon: 'checkCircle' },
-  MISMATCH: { label: 'Mismatch', color: '#DC2626', bg: '#FEF2F2', icon: 'xCircle' },
-  NEEDS_REVIEW: { label: 'Needs review', color: '#D97706', bg: '#FFFBEB', icon: 'helpCircle' },
+  OK: { label: 'Match', color: '#15803D', bg: '#EDF7F0', icon: 'checkCircle' },
+  MISMATCH: { label: 'Discrepancy', color: '#B42318', bg: '#FDF0EE', icon: 'alertCircle' },
+  NEEDS_REVIEW: { label: 'Needs review', color: '#B45309', bg: '#FDF5E7', icon: 'userCheck' },
 } as const;
 export type Status = keyof typeof STATUS;
 
 export const REVIEW_REASONS = {
-  wrong_doc_type: { label: 'Wrong document type', icon: 'files', color: '#7C3AED', bg: '#F5F3FF' },
-  missing_attachment: { label: 'Missing attachment', icon: 'paperclip', color: '#D97706', bg: '#FFFBEB' },
-  unreadable: { label: 'Unreadable document', icon: 'scan', color: '#DC2626', bg: '#FEF2F2' },
-  missing_value: { label: 'Missing required value', icon: 'helpCircle', color: '#2563EB', bg: '#EFF6FF' },
+  wrong_doc_type: { label: 'Wrong document type', icon: 'files', color: '#B45309', bg: '#FDF5E7' },
+  missing_attachment: { label: 'Missing attachment', icon: 'paperclip', color: '#B45309', bg: '#FDF5E7' },
+  unreadable: { label: 'Unreadable or scanned', icon: 'scan', color: '#B45309', bg: '#FDF5E7' },
+  missing_value: { label: 'Missing value', icon: 'helpCircle', color: '#B45309', bg: '#FDF5E7' },
 } as const;
 export type ReviewReason = keyof typeof REVIEW_REASONS;
 
