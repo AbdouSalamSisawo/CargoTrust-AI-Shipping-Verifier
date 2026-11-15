@@ -1,6 +1,6 @@
 /**
  * Document readers. Every format — plain text, PDF (text layer or scanned),
- * Word, Excel — is rebuilt into one canonical layout the extractor reads:
+ * Word, Excel, photos of paper documents — is rebuilt into one canonical layout the extractor reads:
  *
  *     Label: value
  *       continuation line (address, second name line …)
@@ -16,7 +16,10 @@
 import os from 'os';
 import path from 'path';
 
-export type ReadMethod = 'text' | 'pdf-text' | 'pdf-ocr' | 'docx' | 'xlsx' | 'none';
+export type ReadMethod = 'text' | 'pdf-text' | 'pdf-ocr' | 'image-ocr' | 'docx' | 'xlsx' | 'none';
+
+/** Scans and photos: no text layer, read by OCR (and optionally the AI vision model). */
+export const isScanMethod = (m: string | undefined) => m === 'pdf-ocr' || m === 'image-ocr';
 
 export interface ReadResult {
   text: string | null;
@@ -25,13 +28,18 @@ export interface ReadResult {
   ocrConfidence?: number;
   /** Why a document could not be read. */
   error?: string;
+  /** AI vision transcription of a scan (see vision.ts). */
+  ai?: { text: string | null; model: string; unclear: string[]; error?: string };
 }
 
-type Format = 'pdf' | 'docx' | 'xlsx' | 'text' | 'unknown';
+type Format = 'pdf' | 'docx' | 'xlsx' | 'text' | 'png' | 'jpeg' | 'webp' | 'unknown';
 
 /** Detect the real format from the bytes — extensions lie. */
 export function sniffFormat(buf: Buffer, ext: string): Format {
   if (buf.length >= 5 && buf.subarray(0, 5).toString('latin1') === '%PDF-') return 'pdf';
+  if (buf.length >= 8 && buf[0] === 0x89 && buf.subarray(1, 4).toString('latin1') === 'PNG') return 'png';
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf.length >= 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
   if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b) {
     const head = buf.subarray(0, Math.min(buf.length, 4096)).toString('latin1');
     if (/word\//.test(head) || ext === 'docx') return 'docx';
@@ -57,6 +65,12 @@ export async function readDocument(ext: string, buf: Buffer): Promise<ReadResult
         return { text: await readDocx(buf), method: 'docx' };
       case 'xlsx':
         return { text: await readXlsx(buf), method: 'xlsx' };
+      case 'png':
+      case 'jpeg':
+      case 'webp': {
+        const ocr = await ocrImages([buf]);
+        return { text: ocr.text, method: 'image-ocr', ocrConfidence: ocr.confidence };
+      }
       default:
         return { text: null, method: 'none', error: 'unrecognised or binary-garbled file' };
     }
@@ -164,25 +178,72 @@ export async function shutdownReaders(): Promise<void> {
   await w.terminate();
 }
 
-async function ocrPdf(doc: { numPages: number; getPage: (n: number) => Promise<unknown> }) {
+type PdfDoc = { numPages: number; getPage: (n: number) => Promise<unknown> };
+const MAX_SCAN_PAGES = 5;
+
+/** Render PDF pages to PNG at the given scale. */
+async function renderPages(doc: PdfDoc, scale: number): Promise<Buffer[]> {
   const { createCanvas } = await import('@napi-rs/canvas');
-  const worker = await getOcrWorker();
-  const texts: string[] = [];
-  const confs: number[] = [];
-  for (let p = 1; p <= Math.min(doc.numPages, 5); p++) {
+  const out: Buffer[] = [];
+  for (let p = 1; p <= Math.min(doc.numPages, MAX_SCAN_PAGES); p++) {
     const page = (await doc.getPage(p)) as {
       getViewport: (o: { scale: number }) => { width: number; height: number };
       render: (o: unknown) => { promise: Promise<void> };
     };
-    const vp = page.getViewport({ scale: 4 }); // small scan fonts need ~4x for Tesseract
+    const vp = page.getViewport({ scale });
     const canvas = createCanvas(Math.ceil(vp.width), Math.ceil(vp.height));
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    const { data } = await worker.recognize(canvas.toBuffer('image/png'));
+    out.push(canvas.toBuffer('image/png'));
+  }
+  return out;
+}
+
+async function ocrImages(images: Buffer[]) {
+  const worker = await getOcrWorker();
+  const texts: string[] = [];
+  const confs: number[] = [];
+  for (const img of images) {
+    const { data } = await worker.recognize(img);
     texts.push(data.text);
     confs.push(data.confidence);
   }
   const confidence = confs.length ? Math.round(confs.reduce((a, b) => a + b, 0) / confs.length) : 0;
   return { text: texts.join('\n\n').replace(/\n{3,}/g, '\n\n').trim(), confidence };
+}
+
+async function ocrPdf(doc: PdfDoc) {
+  return ocrImages(await renderPages(doc, 4)); // small scan fonts need ~4x for Tesseract
+}
+
+export interface PageImage { mediaType: 'image/png' | 'image/jpeg' | 'image/webp'; data: Buffer }
+
+/**
+ * Page images of a scan, sized for a vision model (long edge <= 2000 px,
+ * under ~4 MB each). PDFs are rendered page by page; photos are downscaled
+ * and re-encoded only when they are too large.
+ */
+export async function scanPageImages(buf: Buffer, ext = ''): Promise<PageImage[]> {
+  const fmt = sniffFormat(buf, ext.toLowerCase());
+  const { createCanvas, loadImage } = await import('@napi-rs/canvas');
+  const fit = async (img: Buffer, mediaType: PageImage['mediaType']): Promise<PageImage> => {
+    const im = await loadImage(img);
+    const long = Math.max(im.width, im.height);
+    if (long <= 2000 && img.length <= 3_800_000) return { mediaType, data: img };
+    const k = Math.min(1, 2000 / long);
+    const c = createCanvas(Math.max(1, Math.round(im.width * k)), Math.max(1, Math.round(im.height * k)));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    return { mediaType: 'image/jpeg', data: c.toBuffer('image/jpeg', 88) };
+  };
+  if (fmt === 'pdf') {
+    const pdfjs = await loadPdfjs();
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false }).promise;
+    const pngs = await renderPages(doc as unknown as PdfDoc, 2.5);
+    return Promise.all(pngs.map((p) => fit(p, 'image/png')));
+  }
+  if (fmt === 'png') return [await fit(buf, 'image/png')];
+  if (fmt === 'jpeg') return [await fit(buf, 'image/jpeg')];
+  if (fmt === 'webp') return [await fit(buf, 'image/webp')];
+  return [];
 }
 
 /* ====================================================================== DOCX */

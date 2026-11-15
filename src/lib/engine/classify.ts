@@ -111,7 +111,10 @@ export function classifyEmail(rec: EmailRecord): Classification {
   const body = cleanBody(rec.body || '');
   const subject = rec.subject || '';
   const full = `${subject}\n${body}`;
-  const { hasSI, hasBL } = attachmentKinds(rec.attachments || []);
+  const named = attachmentKinds(rec.attachments || []);
+  const hinted = Object.values(rec.attachmentKinds ?? {});
+  const hasSI = named.hasSI || hinted.includes('SI');
+  const hasBL = named.hasBL || hinted.includes('BL');
 
   const scores: Record<string, number> = {};
   for (const c of CATEGORY_ORDER) scores[c] = 0;

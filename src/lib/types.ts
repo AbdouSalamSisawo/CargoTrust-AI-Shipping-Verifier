@@ -7,6 +7,48 @@ export interface EmailRecord {
   subject: string;
   body: string;
   attachments: string[];
+  /** SI / BL assignment for attachments whose file name does not say (set by upload or content detection). */
+  attachmentKinds?: Record<string, 'SI' | 'BL'>;
+  /** When the email (or upload) was received, ISO 8601. */
+  receivedAt?: string;
+}
+
+export type Role = 'admin' | 'operator' | 'viewer';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** scrypt$<salt>$<hash> */
+  passwordHash: string;
+  active: boolean;
+  mustChangePassword?: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+/** What the browser is allowed to know about a user. */
+export type PublicUser = Omit<User, 'passwordHash'>;
+
+export interface AuditEvent {
+  id: string;
+  at: string;
+  userId: string | null;
+  userName: string;
+  action: string;
+  target?: string;
+  detail?: string;
+}
+
+/** Result of the AI vision read of a scanned document. */
+export interface AiRead {
+  model: string;
+  /** Fields the AI marked as hard to read on the scan. */
+  unclear: string[];
+  /** Per-field agreement between the AI read and the OCR read (null = OCR found nothing to compare). */
+  agreement?: Partial<Record<FieldKey, boolean | null>>;
+  error?: string;
 }
 
 /* Result of parsing one document (SI or BL) into the 7 canonical fields. */
@@ -49,10 +91,21 @@ export interface AttachmentInfo {
   ocrConfidence?: number;
   /** Why it could not be read. */
   error?: string;
+  /** Present when the scan was read by the AI vision model. */
+  ai?: AiRead;
 }
 
 export interface ProcessedEmail {
   id: string;
+  /** Where the email came from: the bundled sample set, a direct document upload, or an imported .eml. */
+  source?: 'sample' | 'upload' | 'email';
+  receivedAt?: string;
+  /** User who uploaded / imported it. */
+  createdBy?: string;
+  /** Message-ID of an imported email (duplicate detection). */
+  messageId?: string;
+  /** True when at least one document was read by the AI vision model. */
+  aiRead?: boolean;
   from: string;
   subject: string;
   body: string;
@@ -76,7 +129,7 @@ export interface ProcessedEmail {
   attachments: AttachmentInfo[];
   extracted?: { si: ExtractedDoc; bl: ExtractedDoc };
   comparison?: { rows: FieldRow[]; matchedFields: FieldKey[]; defectFields: FieldKey[] };
-  reviewed?: { action: 'approve' | 'correct' | 'reject'; note?: string } | null;
+  reviewed?: { action: 'approve' | 'correct' | 'reject'; note?: string; by?: string; at?: string } | null;
   seq: number;
 }
 
@@ -89,7 +142,7 @@ export interface ReviewCase {
   evidence: { doc: 'SI' | 'BL'; tone: 'ok' | 'warn' | 'bad'; lines: string[] }[];
   editFields: { field: FieldKey; label: string; si: string | null; bl: string | null }[];
   status: 'open' | 'resolved';
-  resolution?: { action: 'approve' | 'correct' | 'reject'; note?: string; updatedStatus?: Status };
+  resolution?: { action: 'approve' | 'correct' | 'reject'; note?: string; updatedStatus?: Status; by?: string; at?: string };
 }
 
 export interface Settings {
@@ -99,7 +152,17 @@ export interface Settings {
   notifyOnMismatch: boolean;
   notifyOnReview: boolean;
   digest: boolean;
-  sdocServerUrl: string;
+  /** Organisation name shown in the console and on drafted replies. */
+  organisation: string;
+  /** Read scanned documents with the AI vision model (needs an Anthropic API key). */
+  aiEnabled: boolean;
+  /** Key stored from the Settings page; ANTHROPIC_API_KEY in the environment takes precedence. */
+  aiApiKey?: string;
+  aiModel: string;
+  /** confirm: AI-read scans still go to a human; auto: decide automatically when the AI read is complete and clear. */
+  aiScanPolicy: 'confirm' | 'auto';
+  /** Legacy (hackathon scoring server). */
+  sdocServerUrl?: string;
 }
 
 export interface EvalCase {
@@ -127,4 +190,8 @@ export interface DBShape {
   emails: Record<string, ProcessedEmail>;
   reviews: Record<string, ReviewCase>;
   evalRuns: EvalRun[];
+  users: Record<string, User>;
+  audit: AuditEvent[];
+  /** Whether the bundled sample inbox is loaded into the workspace. */
+  sampleData: boolean;
 }

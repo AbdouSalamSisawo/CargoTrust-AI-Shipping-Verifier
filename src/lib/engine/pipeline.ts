@@ -4,16 +4,27 @@
  * The engine never guesses. Anything it cannot decide reliably is escalated to
  * the review queue with a named reason and the evidence:
  *   missing_attachment  the sender asked for a check but the SI or BL is absent
- *   unreadable          corrupt / encrypted file, or a scan read only by OCR
+ *   unreadable          corrupt / encrypted file, or a scan that a human must confirm
+ *
+ * Scans and photos are read by OCR and — when configured — by the AI vision
+ * model (vision.ts). The AI transcription goes through the same extractor and
+ * comparator; OCR stays as an independent cross-check. Policy "confirm"
+ * (default) still routes every scan to a human with the AI pre-check; policy
+ * "auto" decides automatically when the AI read is clear.
  *   wrong_doc_type      an invoice / packing list / certificate instead of SI or BL
  *   missing_value       a required field is blank or a placeholder (TBA, ____)
  */
 import type { EmailRecord, ProcessedEmail, AttachmentInfo, ExtractedDoc } from '@/lib/types';
-import { fieldLabel } from '@/data/taxonomy';
+import { fieldLabel, FIELD_KEYS, type FieldKey } from '@/data/taxonomy';
 import { classifyEmail } from './classify';
 import { extractDoc, detectKind, type DetectedKind } from './extract';
-import { compareDocs } from './compare';
-import type { ReadResult } from './readers';
+import { compareDocs, compareValue } from './compare';
+import { isScanMethod, type ReadResult } from './readers';
+
+export interface PipelineOptions {
+  /** What to do with scans the AI vision model has read. */
+  aiScanPolicy?: 'confirm' | 'auto';
+}
 
 export function docKindOf(path: string): 'SI' | 'BL' | 'other' {
   const m = path.match(/[_\-\s]([A-Za-z]{2})\.[A-Za-z0-9]+$/);
@@ -45,6 +56,28 @@ function summarizeNonDoc(category: string): string {
   }
 }
 
+/**
+ * Work out SI / BL from the content for attachments whose file name does not
+ * say (real mail: "Draft 1.pdf", "scan0042.jpg"). Returns hints for
+ * EmailRecord.attachmentKinds.
+ */
+export function detectAttachmentKinds(paths: string[], reads: Record<string, ReadResult | null>): Record<string, 'SI' | 'BL'> {
+  const out: Record<string, 'SI' | 'BL'> = {};
+  const taken = new Set(paths.map(docKindOf).filter((k) => k !== 'other'));
+  for (const p of paths) {
+    if (docKindOf(p) !== 'other') continue;
+    const r = reads[p];
+    const text = r?.ai?.text ?? r?.text;
+    if (!text) continue;
+    const kind = detectKind(text, extractDoc(text, { ocr: isScanMethod(r?.method) && !r?.ai?.text }));
+    if ((kind === 'SI' || kind === 'BL') && !taken.has(kind)) {
+      out[p] = kind;
+      taken.add(kind);
+    }
+  }
+  return out;
+}
+
 /** Normalise legacy callers that pass plain text instead of a ReadResult. */
 function asRead(v: ReadResult | string | null | undefined): ReadResult {
   if (v == null) return { text: null, method: 'none', error: 'attachment not found' };
@@ -52,7 +85,11 @@ function asRead(v: ReadResult | string | null | undefined): ReadResult {
   return v;
 }
 
-export function processEmail(rec: EmailRecord, reads: Record<string, ReadResult | string | null>): ProcessedEmail {
+export function processEmail(
+  rec: EmailRecord,
+  reads: Record<string, ReadResult | string | null>,
+  opts: PipelineOptions = {},
+): ProcessedEmail {
   const cls = classifyEmail(rec);
   const attachments: AttachmentInfo[] = rec.attachments.map((p) => {
     const r = asRead(reads[p]);
@@ -60,17 +97,19 @@ export function processEmail(rec: EmailRecord, reads: Record<string, ReadResult 
       path: p,
       name: p.split('/').pop() || p,
       ext: (p.split('.').pop() || '').toLowerCase(),
-      kind: docKindOf(p),
-      readable: r.text != null,
+      kind: rec.attachmentKinds?.[p] ?? docKindOf(p),
+      readable: r.text != null || r.ai?.text != null,
       size: r.text ? r.text.length : 0,
       method: r.method,
       ocrConfidence: r.ocrConfidence,
       error: r.error,
+      ai: r.ai ? { model: r.ai.model, unclear: r.ai.unclear, error: r.ai.error } : undefined,
     };
   });
 
   const email: ProcessedEmail = {
     id: rec.email_id,
+    receivedAt: rec.receivedAt,
     from: rec.from,
     subject: rec.subject,
     body: rec.body,
@@ -128,23 +167,44 @@ export function processEmail(rec: EmailRecord, reads: Record<string, ReadResult 
 
   const siRead = asRead(reads[siAtt.path]);
   const blRead = asRead(reads[blAtt.path]);
-  if (siRead.text == null || blRead.text == null) {
+  const hasText = (r: ReadResult) => r.text != null || r.ai?.text != null;
+  if (!hasText(siRead) || !hasText(blRead)) {
     const bad = [
-      siRead.text == null ? `${siAtt.name} (${siRead.error ?? 'no readable content'})` : null,
-      blRead.text == null ? `${blAtt.name} (${blRead.error ?? 'no readable content'})` : null,
+      !hasText(siRead) ? `${siAtt.name} (${siRead.error ?? 'no readable content'})` : null,
+      !hasText(blRead) ? `${blAtt.name} (${blRead.error ?? 'no readable content'})` : null,
     ].filter(Boolean);
     return escalate('unreadable', `Could not read ${bad.join(' and ')}. Escalated — ask the sender to re-send a readable copy.`);
   }
 
-  const ocr = siRead.method === 'pdf-ocr' || blRead.method === 'pdf-ocr';
-  let si = extractDoc(siRead.text, { docKind: 'SI', method: siRead.method, ocr: siRead.method === 'pdf-ocr' });
-  let bl = extractDoc(blRead.text, { docKind: 'BL', method: blRead.method, ocr: blRead.method === 'pdf-ocr' });
-  let siKind = detectKind(siRead.text, si);
-  let blKind = detectKind(blRead.text, bl);
+  /** Extract one document; scans prefer the AI transcription and keep OCR as a cross-check. */
+  const readDoc = (r: ReadResult, att: AttachmentInfo, kind: 'SI' | 'BL') => {
+    const scan = isScanMethod(r.method);
+    const aiText = scan ? (r.ai?.text ?? null) : null;
+    const text = aiText ?? (r.text as string);
+    const doc = extractDoc(text, { docKind: kind, method: aiText ? 'ai-vision' : r.method, ocr: scan && !aiText });
+    if (aiText && r.text && att.ai) {
+      const o = extractDoc(r.text, { docKind: kind, method: r.method, ocr: true });
+      const agreement: Partial<Record<FieldKey, boolean | null>> = {};
+      for (const f of FIELD_KEYS) {
+        const a = doc.values[f];
+        const b = o.values[f];
+        agreement[f] = a && b ? compareValue(f, a, b, true) : null;
+      }
+      att.ai.agreement = agreement;
+    }
+    return { doc, text, scan, ai: aiText != null, read: r };
+  };
+  let siR = readDoc(siRead, siAtt, 'SI');
+  let blR = readDoc(blRead, blAtt, 'BL');
+  let si = siR.doc;
+  let bl = blR.doc;
+  let siKind = detectKind(siR.text, si);
+  let blKind = detectKind(blR.text, bl);
 
   // swapped files (SI named _BL and vice versa): fix and carry on
   if (siKind === 'BL' && blKind === 'SI') {
     [si, bl] = [bl, si];
+    [siR, blR] = [blR, siR];
     [siKind, blKind] = [blKind, siKind];
     [siAtt, blAtt] = [blAtt, siAtt];
     si.docKind = 'SI';
@@ -165,12 +225,41 @@ export function processEmail(rec: EmailRecord, reads: Record<string, ReadResult 
     return escalate('wrong_doc_type', `${parts.join('; ')}. Escalated — the comparison needs the SI and the draft BL.`);
   }
 
-  const cmp = compareDocs(si, bl, ocr);
+  // OCR text gets OCR-tolerant comparison; an AI transcription is compared strictly.
+  const ocrOnly = (siR.scan && !siR.ai) || (blR.scan && !blR.ai);
+  const cmp = compareDocs(si, bl, ocrOnly);
+  const scans = [siR, blR].filter((r) => r.scan);
 
-  if (ocr) {
+  if (scans.length && scans.every((r) => r.ai)) {
+    email.aiRead = true;
+    const model = scans[0].read.ai?.model ?? 'AI';
+    const unclear = [...new Set(scans.flatMap((r) => r.read.ai?.unclear ?? []))];
+    const checks = [siAtt, blAtt].flatMap((a) => Object.values(a.ai?.agreement ?? {}).filter((v) => v != null));
+    const agreeNote = checks.length
+      ? `OCR cross-check agrees on ${checks.filter(Boolean).length} of ${checks.length} field reads`
+      : 'OCR found too little text to cross-check';
+    const readNote = `Scanned document read by AI vision (${model}); ${agreeNote}.`;
+    if (opts.aiScanPolicy === 'auto' && unclear.length === 0) {
+      email.notes = [...(email.notes ?? []), `${readNote} The AI read was complete and clear, so the engine decided automatically (policy: auto).`];
+      // fall through to the normal missing-value / comparison decision
+    } else {
+      email.comparison = cmp;
+      const missing = [...new Set([...si.missing, ...bl.missing])];
+      const pre = unclear.length
+        ? `The AI marked ${unclear.join(', ')} as hard to read`
+        : missing.length
+          ? `AI pre-check: ${missing.map(fieldLabel).join(', ')} not found`
+          : cmp.defectFields.length
+            ? `AI pre-check suggests a mismatch on ${cmp.defectFields.map(fieldLabel).join(', ')}`
+            : 'AI pre-check: all 7 fields agree';
+      return escalate('unreadable', `${readNote} ${pre}. A human confirms against the scan before release.`);
+    }
+  } else if (scans.length) {
     // Scans have no text layer: OCR gives a pre-check, a human confirms.
     email.comparison = cmp;
-    const conf = [siRead, blRead].filter((r) => r.method === 'pdf-ocr').map((r) => r.ocrConfidence ?? 0);
+    const conf = scans.map((r) => r.read.ocrConfidence ?? 0);
+    const aiErr = scans.map((r) => r.read.ai?.error).find(Boolean);
+    if (aiErr) email.notes = [...(email.notes ?? []), `AI vision read failed (${aiErr}); fell back to OCR.`];
     const missing = [...new Set([...si.missing, ...bl.missing])];
     const pre = missing.length
       ? `OCR could not locate ${missing.map(fieldLabel).join(', ')}`
