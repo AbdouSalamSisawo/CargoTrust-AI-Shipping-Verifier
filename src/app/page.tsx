@@ -50,7 +50,7 @@ export default function LandingPage() {
         <div className="relative max-w-6xl mx-auto px-4 lg:px-6 pt-28 pb-24 lg:pt-36 lg:pb-32 grid lg:grid-cols-[1.05fr_1fr] gap-12 items-center">
           <div>
             <div className="eyebrow text-aqua-300">Shipping document verification</div>
-            <h1 id="hero-h" className="mt-4 font-display text-[40px] sm:text-[52px] leading-[1.04] font-semibold tracking-tight">
+            <h1 id="hero-h" className="mt-4 text-white font-display text-[40px] sm:text-[52px] leading-[1.04] font-semibold tracking-tight">
               Catch Bill of Lading errors before the BL is issued.
             </h1>
             <p className="mt-5 text-[16.5px] leading-relaxed text-slate-300 max-w-xl">
@@ -135,7 +135,7 @@ export default function LandingPage() {
           <SectionHead id="trust-h" light eyebrow="Transparency" title="Built to be checked, not trusted blindly." intro="Every result says what was compared, where each value came from, and who reviewed it."/>
           <div className="mt-12 grid lg:grid-cols-2 gap-10">
             <div>
-              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Three possible outcomes</h3>
+              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] !text-slate-400">Three possible outcomes</h3>
               <dl className="mt-4 divide-y divide-white/10 border-y border-white/10">
                 {OUTCOMES.map((o) => (
                   <div key={o.label} className="py-4 grid grid-cols-[130px_1fr] gap-4">
@@ -146,7 +146,7 @@ export default function LandingPage() {
               </dl>
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">What CargoTrust does not do</h3>
+              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] !text-slate-400">What CargoTrust does not do</h3>
               <ul className="mt-4 space-y-3">
                 {NOT_DONE.map((t) => (
                   <li key={t} className="flex gap-3 text-[14.5px] leading-relaxed text-slate-200">
@@ -240,7 +240,7 @@ export default function LandingPage() {
       <section className="relative bg-navy-950 text-white overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-16 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h2 className="font-display text-[28px] font-semibold tracking-tight">See it with your own documents.</h2>
+            <h2 className="text-white font-display text-[28px] font-semibold tracking-tight">See it with your own documents.</h2>
             <p className="mt-2 text-[15px] text-slate-300">Sign in, upload a Shipping Instruction and its draft BL, and review the result.</p>
           </div>
           <Link href="/login" className="btn bg-aqua-500 text-white hover:bg-aqua-600 px-5 py-2.5 text-[14.5px] self-start md:self-auto">Sign in<Icon name="arrowRight" size={16}/></Link>

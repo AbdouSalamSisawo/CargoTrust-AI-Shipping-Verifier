@@ -62,7 +62,7 @@ function LoginInner() {
         <Link href="/" className="relative self-start" aria-label="CargoTrust AI home"><Logo light/></Link>
         <div className="relative max-w-md mb-[22vh]">
           <div className="eyebrow text-aqua-300">Shipping document verification</div>
-          <h1 className="mt-4 font-display text-[36px] leading-[1.08] font-semibold tracking-tight">Check the Bill of Lading before it is issued.</h1>
+          <h1 className="mt-4 text-white font-display text-[36px] leading-[1.08] font-semibold tracking-tight">Check the Bill of Lading before it is issued.</h1>
           <p className="mt-4 text-[15px] leading-relaxed text-slate-300">
             Compare each Shipping Instruction with its draft BL, see where every value came from, and keep a record of who decided what.
           </p>

@@ -47,13 +47,24 @@ function Scan() {
 }
 
 export function ScanCompare() {
-  const [pos, setPos] = useState(55);
+  const [view, setView] = useState<'scan' | 'read'>('scan');
   return (
     <figure className="m-0">
-      <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-white select-none">
-        <div className="absolute inset-0"><Scan/></div>
-        <div className="absolute inset-0 bg-navy-950 px-6 py-6 sm:px-8 font-mono text-[11.5px] sm:text-[13px] leading-[2.15] text-slate-300" style={{ clipPath: `inset(0 0 0 ${pos}%)` }}>
-          <div className="text-aqua-300 mb-1">What was read</div>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="inline-flex rounded-md border border-slate-300 p-0.5 bg-white" role="group" aria-label="Choose what to show">
+          {([['scan', 'As received'], ['read', 'What was read']] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setView(k)} aria-pressed={view === k}
+              className={`px-3 py-1.5 rounded text-[13px] font-medium transition-colors ${view === k ? 'bg-navy-900 text-white' : 'text-ink-600 hover:text-ink-900'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <span className="text-[12px] text-ink-400">Illustration</span>
+      </div>
+      <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-white">
+        <div className={`absolute inset-0 transition-opacity duration-300 ${view === 'scan' ? 'opacity-100' : 'opacity-0'}`} aria-hidden={view !== 'scan'}><Scan/></div>
+        <div className={`absolute inset-0 bg-navy-950 px-6 py-6 sm:px-8 font-mono text-[11.5px] sm:text-[13px] leading-[2.15] text-slate-300 transition-opacity duration-300 ${view === 'read' ? 'opacity-100' : 'opacity-0'}`} aria-hidden={view !== 'read'}>
+          <div className="text-aqua-300 mb-1">Structured text used for the comparison</div>
           {LINES.map(([l, v]) => (
             <div key={l} className="truncate">
               <span className="text-slate-500">{l}:</span>{' '}
@@ -61,17 +72,8 @@ export function ScanCompare() {
             </div>
           ))}
         </div>
-        <div className="absolute inset-y-0 w-0.5 bg-white shadow pointer-events-none" style={{ left: `${pos}%` }} aria-hidden="true">
-          <span className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 w-7 h-7 rounded-full bg-white border border-line shadow flex items-center justify-center text-ink-500 text-[11px]">⇆</span>
-        </div>
-        <span className="absolute top-3 left-3 tag bg-white/90 text-ink-600">As received</span>
-        <span className="absolute top-3 right-3 tag bg-navy-800 text-aqua-100">Structured text</span>
       </div>
-      <label className="mt-3 flex items-center gap-3 text-[12.5px] text-ink-500">
-        <span className="whitespace-nowrap">Compare</span>
-        <input type="range" min={0} max={100} value={pos} onChange={(e) => setPos(Number(e.target.value))} className="flex-1" aria-label="Move the divider between the scan and the extracted text"/>
-      </label>
-      <figcaption className="mt-1 text-[11.5px] text-ink-400">Illustration. On a real scan, unclear characters are marked rather than guessed, and the case goes to a person.</figcaption>
+      <figcaption className="mt-2.5 text-[12px] text-ink-400">On a real scan, unclear characters are marked rather than guessed, and the case goes to a person.</figcaption>
     </figure>
   );
 }

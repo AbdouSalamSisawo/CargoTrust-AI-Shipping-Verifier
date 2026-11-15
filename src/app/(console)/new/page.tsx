@@ -180,7 +180,7 @@ function UploadTab() {
         <div className="flex flex-wrap gap-2">
           {SAMPLES.map((s) => (
             <button key={s.id} onClick={() => loadSample(s)} title={s.hint} disabled={!!loadingSample}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-ink-600 hover:border-brand-300 hover:text-brand-600 transition-colors">
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-ink-600 hover:border-brand-300 hover:text-brand-600 transition-colors">
               <Icon name={loadingSample === s.id ? 'loader' : 'fileText'} size={12} className={loadingSample === s.id ? 'animate-spin' : ''}/>{s.label}
             </button>
           ))}

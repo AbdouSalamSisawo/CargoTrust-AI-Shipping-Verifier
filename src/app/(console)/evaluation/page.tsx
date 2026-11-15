@@ -25,7 +25,7 @@ function ScoreBar({ label, value, color, hint }: { label: string; value: number;
 }
 
 function Tile({ label, value, sub, tone = 'brand' }: { label: string; value: string; sub?: string; tone?: 'brand' | 'good' | 'warn' }) {
-  const c = tone === 'good' ? 'text-emerald-600' : tone === 'warn' ? 'text-amber-600' : 'text-brand-600';
+  const c = tone === 'good' ? 'text-emerald-800' : 'text-ink-900';
   return (
     <div className="rounded-md border border-line bg-slate-50/60 px-3.5 py-3">
       <div className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-400">{label}</div>
@@ -142,7 +142,6 @@ export default function EvaluationPage() {
         <div className="card">
           <EmptyState
             icon="gauge"
-            tint="#8B5CF6"
             title="No evaluation run yet"
             sub="Run the built-in self-test (≈20 labeled synthetic cases) to measure classification accuracy, defect F1, escalation reliability and end-to-end correctness."
             action={<button onClick={runSelfTest} className="btn-primary"><Icon name="play" size={14}/>Run self-test</button>}
@@ -222,15 +221,15 @@ export default function EvaluationPage() {
       <M from={{ opacity: 0, transform: 'translateY(16px)' }} to={{ opacity: 1, transform: 'none' }} className="card p-5">
         <h3 className="text-[14px] font-semibold text-ink-900 flex items-center gap-2"><Icon name="shieldCheck" size={15} className="text-emerald-500"/>Independent benchmark record</h3>
         <p className="text-xs text-ink-400 mt-0.5 mb-4">
-          Averis × Monash SDOC shipping-document benchmark (2026): 520 real-style emails graded by the organizers&apos; own scorer
+          Averis × Monash SDOC shipping-document benchmark (2026): 520 realistic synthetic emails, graded by the organisers&apos; own scorer
           against a private answer key the engine never saw.
         </p>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <Tile label="Final score" value="1.0000" sub="0.3·S1 + 0.2·S3 + 0.5·E2E" tone="good"/>
+          <Tile label="Final score" value="1.0000" sub="weighted overall score" tone="good"/>
           <Tile label="Classification macro-F1" value="1.000" sub="5 categories, 520 emails"/>
           <Tile label="Defect F1" value="1.000" sub="exact fields"/>
           <Tile label="End-to-end" value="46/46" sub="defects caught, exact fields"/>
-          <Tile label="Escalations" value="20/20" sub="precision 1.00 · recall 1.00" tone="warn"/>
+          <Tile label="Escalations" value="20/20" sub="precision 1.00 · recall 1.00" />
         </div>
       </M>
     </div>
