@@ -1,0 +1,16 @@
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { createCanvas } from '@napi-rs/canvas';
+import Tesseract from 'tesseract.js';
+import fs from 'fs';
+const f = process.argv[2];
+const doc = await getDocument({ data: new Uint8Array(fs.readFileSync('dataset/attachments/' + f)), verbosity: 0 }).promise;
+const page = await doc.getPage(1);
+const vp = page.getViewport({ scale: +(process.env.SCALE||4) });
+const canvas = createCanvas(vp.width, vp.height);
+await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+const png = canvas.toBuffer('image/png');
+fs.writeFileSync(process.env.TEMP + '/scan.png', png);
+const t0 = Date.now();
+const { data } = await Tesseract.recognize(png, 'eng');
+console.log('conf', data.confidence, 'ms', Date.now() - t0);
+console.log(data.text);
