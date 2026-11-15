@@ -13,7 +13,15 @@ const nextConfig = {
     // tracing, so list them for serverless hosting (Vercel): the sample inbox,
     // the bundled OCR language model and pdf.js's standard fonts.
     outputFileTracingIncludes: {
-      '/**/*': ['./dataset/**/*', './eng.traineddata', './node_modules/pdfjs-dist/standard_fonts/**/*'],
+      '/**/*': [
+        './dataset/**/*',
+        './eng.traineddata',
+        './node_modules/pdfjs-dist/standard_fonts/**/*',
+        // pdf.js loads its worker, and tesseract.js its worker script and wasm core, by computed path
+        './node_modules/pdfjs-dist/legacy/build/**/*',
+        './node_modules/tesseract.js/src/**/*',
+        './node_modules/tesseract.js-core/**/*',
+      ],
     },
   },
 };

@@ -5,7 +5,7 @@ import { isScanMethod } from '@/lib/engine/readers';
 import { guarded } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 600;
+export const maxDuration = 300; // the Vercel Hobby limit; sample reloads reuse cached OCR, so they fit
 
 export const GET = guarded('admin', async () => {
   const db = await getDB();

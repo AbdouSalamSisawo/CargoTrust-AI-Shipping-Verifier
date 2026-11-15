@@ -1,0 +1,9 @@
+# Never upload local state, secrets or organizer material to Vercel
+/data/
+/.local/
+/out/
+/.next/
+*.zip
+.env*
+!.env.example
+*.log

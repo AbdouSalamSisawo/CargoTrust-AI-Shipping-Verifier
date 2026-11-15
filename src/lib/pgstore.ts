@@ -25,9 +25,13 @@ let schemaReady: Promise<void> | null = null;
 
 function getPool(): Pool {
   if (pool) return pool;
-  const url = databaseUrl();
-  const local = /@(localhost|127\.0\.0\.1|db|postgres)(:\d+)?\//.test(url) || /sslmode=disable/.test(url);
-  pool = new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 10_000, ssl: local ? undefined : { rejectUnauthorized: false } });
+  // TLS with certificate verification for remote databases. "require" is upgraded to the
+  // equivalent "verify-full" explicitly (pg already treats it so, and warns otherwise);
+  // a server with a self-signed certificate can use sslmode=no-verify in its URL.
+  const url = databaseUrl().replace(/sslmode=(require|prefer|verify-ca)\b/, 'sslmode=verify-full');
+  const local = /@(localhost|127\.0\.0\.1|db|postgres)(:\d+)?\//.test(url);
+  const ssl = /sslmode=/.test(url) || local ? undefined : true;
+  pool = new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 10_000, ssl });
   // On Vercel, close idle connections before the instance is suspended.
   if (process.env.VERCEL) {
     void import('@vercel/functions')
