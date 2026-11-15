@@ -84,6 +84,9 @@ export async function readDocument(ext: string, buf: Buffer): Promise<ReadResult
 
 interface Item { x: number; y: number; w: number; s: string }
 
+/** pdf.js needs the standard font files to *render* PDFs that use the base-14 fonts (Helvetica…). */
+const STANDARD_FONTS = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts') + path.sep;
+
 async function loadPdfjs() {
   // legacy build runs in plain Node (no DOM)
   return import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -91,7 +94,7 @@ async function loadPdfjs() {
 
 async function readPdf(buf: Buffer): Promise<ReadResult> {
   const pdfjs = await loadPdfjs();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false }).promise;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false, standardFontDataUrl: STANDARD_FONTS }).promise;
   const pages: string[] = [];
   let chars = 0;
   for (let p = 1; p <= doc.numPages; p++) {
@@ -236,7 +239,7 @@ export async function scanPageImages(buf: Buffer, ext = ''): Promise<PageImage[]
   };
   if (fmt === 'pdf') {
     const pdfjs = await loadPdfjs();
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false }).promise;
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false, standardFontDataUrl: STANDARD_FONTS }).promise;
     const pngs = await renderPages(doc as unknown as PdfDoc, 2.5);
     return Promise.all(pngs.map((p) => fit(p, 'image/png')));
   }

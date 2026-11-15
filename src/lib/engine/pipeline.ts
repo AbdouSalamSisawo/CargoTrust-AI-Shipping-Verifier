@@ -129,6 +129,9 @@ export function processEmail(
     seq: 0,
   };
 
+  const aiErr = attachments.map((a) => a.ai?.error).find(Boolean);
+  if (aiErr) email.notes = [`AI vision read failed (${aiErr}); the scan was read by OCR only.`];
+
   if (cls.category !== 'BL_COMPARISON') {
     email.summary = summarizeNonDoc(cls.category);
     return email;
@@ -258,8 +261,6 @@ export function processEmail(
     // Scans have no text layer: OCR gives a pre-check, a human confirms.
     email.comparison = cmp;
     const conf = scans.map((r) => r.read.ocrConfidence ?? 0);
-    const aiErr = scans.map((r) => r.read.ai?.error).find(Boolean);
-    if (aiErr) email.notes = [...(email.notes ?? []), `AI vision read failed (${aiErr}); fell back to OCR.`];
     const missing = [...new Set([...si.missing, ...bl.missing])];
     const pre = missing.length
       ? `OCR could not locate ${missing.map(fieldLabel).join(', ')}`
@@ -268,7 +269,7 @@ export function processEmail(
         : 'OCR pre-check: all 7 fields agree';
     return escalate(
       'unreadable',
-      `Scanned document without a text layer — read by OCR (confidence ${Math.min(...conf)}%). ${pre}. A human must confirm against the scan before release.`,
+      `${scans.some((r) => r.read.method === 'image-ocr') ? 'Photo or image' : 'Scanned document'} without a text layer — read by OCR (confidence ${Math.min(...conf)}%). ${pre}. A human must confirm against the scan before release.`,
     );
   }
 

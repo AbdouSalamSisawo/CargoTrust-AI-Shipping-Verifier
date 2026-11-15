@@ -2,14 +2,15 @@
   "name": "cargotrust-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "CargoTrust AI — AI shipping document verification (SI vs draft BL) for the SDOC hackathon problem statement",
+  "description": "CargoTrust AI \u2014 AI shipping document verification (SI vs draft BL) for the SDOC hackathon problem statement",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "engine": "tsx scripts/run-engine.ts",
     "score": "npm run engine && bash scripts/score.sh",
-    "robustness": "tsx scripts/robustness.ts"
+    "robustness": "tsx scripts/robustness.ts",
+    "check:ai": "tsx scripts/ai-path-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
