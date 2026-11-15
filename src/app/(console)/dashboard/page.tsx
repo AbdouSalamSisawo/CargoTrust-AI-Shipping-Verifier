@@ -14,9 +14,9 @@ function Stat({ label, value, note, href, tone }: { label: string; value: number
   const color = tone && tone !== 'muted' ? STATUS[tone].color : undefined;
   return (
     <Link href={href} className="group block px-5 py-4 hover:bg-slate-50 transition-colors focus-visible:relative">
-      <div className="text-[12px] font-medium text-ink-400 flex items-center gap-1.5">
-        {color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} aria-hidden="true"/>}
-        {label}
+      <div className="text-[12px] font-medium text-ink-400 flex items-center gap-1.5 whitespace-nowrap" title={label}>
+        {color && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} aria-hidden="true"/>}
+        <span className="truncate">{label}</span>
       </div>
       <div className="mt-1 text-[24px] leading-8 font-semibold tabular-nums text-ink-900">{fmt(value)}</div>
       {note && <div className="text-[12px] text-ink-400 truncate">{note}</div>}
@@ -97,7 +97,7 @@ export default function DashboardPage() {
       {/* summary strip */}
       <section className="card grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 divide-x divide-y xl:divide-y-0 divide-line overflow-hidden" aria-label="Summary">
         <Stat label="Items in inbox" value={m.total} note={`${fmt(m.docChecks)} document threads`} href="/emails"/>
-        <Stat label="Checks with documents" value={withDocs} note="SI and draft BL compared" href="/emails?category=BL_COMPARISON"/>
+        <Stat label="Document checks" value={withDocs} note="SI and BL compared" href="/emails?category=BL_COMPARISON"/>
         <Stat label="Match" value={m.matches} tone="OK" note="all 7 fields agree" href="/emails?status=OK&category=BL_COMPARISON"/>
         <Stat label="Discrepancy" value={m.mismatches} tone="MISMATCH" note="amendment needed" href="/emails?status=MISMATCH"/>
         <Stat label="Needs review" value={m.needsReview} tone="NEEDS_REVIEW" note={`${m.reviewOpen} open in the queue`} href="/reviews"/>
