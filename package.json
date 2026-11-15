@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "engine": "tsx scripts/run-engine.ts",
+    "score": "npm run engine && bash scripts/score.sh"
   },
   "dependencies": {
     "mammoth": "^1.8.0",
