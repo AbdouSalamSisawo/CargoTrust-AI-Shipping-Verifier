@@ -190,14 +190,13 @@ export default function LandingPage() {
             </h1>
             <p className="text-[16px] text-slate-500 leading-relaxed mt-5 max-w-xl">
               CargoTrust AI reads a shipping operations inbox, tells document-check requests apart from invoices,
-              SI submissions and spam, reads each Shipping Instruction and draft Bill of Lading — text, PDF, scan,
-              Word or Excel — and catches discrepancies in the seven critical fields before the draft is finalized.
+              SI submissions and spam, reads each Shipping Instruction and draft Bill of Lading — PDF, Word, Excel,
+              a scan or a phone photo — and catches discrepancies in the seven critical fields before the BL is issued.
               When it cannot decide, it asks a human instead of guessing.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Link href="/login" className="btn-primary text-[15px] py-3 px-6">Sign in to the console <Icon name="arrowRight" size={16}/></Link>
               <a href="#how" className="btn-ghost text-[15px] py-3 px-6"><Icon name="play" size={15}/>How it works</a>
-              <a href="#how" className="btn-ghost text-[15px] py-3 px-6">How it works</a>
             </div>
             <p className="text-[11.5px] text-slate-400 mt-3">Accounts are created by your administrator.</p>
             <div className="flex flex-wrap gap-x-8 gap-y-4 mt-8">
@@ -557,4 +556,4 @@ export default function LandingPage() {
   );
 }
 
-const PRODUCT_PLACEHOLDER = { engine: 'CargoTrust Engine v2.1' };
+const PRODUCT_PLACEHOLDER = { engine: 'CargoTrust Engine v3.0' };
