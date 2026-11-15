@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cx } from '@/lib/utils';
-import { PRODUCT } from '@/data/taxonomy';
 import { Icon, Logo } from './icons';
 import { ToastProvider, M } from './ui';
 import type { PublicUser, Role } from '@/lib/types';
@@ -60,7 +59,7 @@ function NavItem({ href, label, icon, active, badge }: { href: string; label: st
   );
 }
 
-function Sidebar({ route, openCount, user, aiActive }: { route: string; openCount: number | null; user: PublicUser; aiActive: boolean }) {
+function Sidebar({ route, openCount, user }: { route: string; openCount: number | null; user: PublicUser }) {
   return (
     <div className="h-full flex flex-col">
       <div className="px-5 pt-5 pb-4">
@@ -85,22 +84,6 @@ function Sidebar({ route, openCount, user, aiActive }: { route: string; openCoun
           </div>
         ))}
       </nav>
-      <div className="p-3">
-        <div className="rounded-2xl p-4 relative overflow-hidden text-white" style={{ background: 'linear-gradient(135deg,#0A1A2F,#1E3A8A 60%,#2563EB)' }}>
-          <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-aqua-400/20 blur-2xl pointer-events-none"/>
-          <div className="relative">
-            <div className="flex items-center gap-2 min-w-0">
-              <Icon name="sparkles" size={15} className="text-aqua-300 shrink-0"/>
-              <span className="text-[12.5px] font-bold truncate">{PRODUCT.engine}</span>
-            </div>
-            <div className="text-[10.5px] text-white/55 mt-0.5">Deterministic decisions · full evidence</div>
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold">
-              <span className={cx('w-1.5 h-1.5 rounded-full', aiActive ? 'bg-aqua-300' : 'bg-white/30')}/>
-              <span className={aiActive ? 'text-aqua-300' : 'text-white/45'}>AI scan reading {aiActive ? 'on' : 'off'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -143,14 +126,14 @@ export function AppShell({ children, user, organisation, aiActive }: { children:
       <div className="min-h-screen">
         {/* desktop sidebar */}
         <aside className="hidden lg:flex w-[248px] shrink-0 border-r border-slate-200/70 bg-white flex-col fixed inset-y-0 z-40">
-          <Sidebar route={route} openCount={openCount} user={user} aiActive={aiActive}/>
+          <Sidebar route={route} openCount={openCount} user={user}/>
         </aside>
         {/* mobile drawer */}
         {drawer && (
           <div className="lg:hidden fixed inset-0 z-50">
             <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm" onClick={() => setDrawer(false)}/>
             <M from={{ opacity: 0, x: -40 }} to={{ opacity: 1, x: 0 }} dur={0.3} className="absolute inset-y-0 left-0 w-[264px] bg-white shadow-lift">
-              <Sidebar route={route} openCount={openCount} user={user} aiActive={aiActive}/>
+              <Sidebar route={route} openCount={openCount} user={user}/>
             </M>
           </div>
         )}

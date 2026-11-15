@@ -4,7 +4,6 @@ import { getDB, mutate } from '@/lib/store';
 import { runSelfTest } from '@/lib/metrics';
 import { guarded } from '@/lib/auth';
 import { isScanMethod } from '@/lib/engine/readers';
-import { PRODUCT } from '@/data/taxonomy';
 import { readAttachment } from '@/lib/dataset';
 import { runRobustness } from '@/lib/engine/robustness';
 
@@ -21,7 +20,7 @@ export const POST = guarded('operator', async (_user, req: NextRequest) => {
 
   if (body.action === 'run') {
     const run = await mutate((db) => {
-      const r = runSelfTest(PRODUCT.engine);
+      const r = runSelfTest('v1');
       db.evalRuns.push(r);
       if (db.evalRuns.length > 20) db.evalRuns = db.evalRuns.slice(-20);
       return r;

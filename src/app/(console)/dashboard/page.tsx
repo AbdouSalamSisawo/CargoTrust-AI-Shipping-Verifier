@@ -4,7 +4,7 @@ import { useSession, can } from '@/components/shell';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { DashboardMetrics } from '@/lib/metrics';
-import { CATEGORIES, PRODUCT, type Status } from '@/data/taxonomy';
+import { CATEGORIES, type Status } from '@/data/taxonomy';
 import { Icon } from '@/components/icons';
 import { M, useCountUp, Ring, Donut, StatusBadge, CategoryBadge, ReasonBadge, Skeleton, useToast } from '@/components/ui';
 import { cx, fmt } from '@/lib/utils';
@@ -183,7 +183,6 @@ export default function DashboardPage() {
                   <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulseDot"/>
                     <span className="text-[10.5px] font-bold tracking-wide text-emerald-300 uppercase whitespace-nowrap">Live</span>
-                    <span className="text-[10.5px] text-white/50 whitespace-nowrap">{PRODUCT.engine}</span>
                   </div>
                   <h2 className="font-display text-[24px] font-bold text-white mt-3">AI Verification Status</h2>
                   <p className="text-white/55 text-[13.5px] leading-relaxed mt-1.5 max-w-md">

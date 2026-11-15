@@ -547,7 +547,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-10 pt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-slate-400">
-            <span>© 2026 CargoTrust AI · {PRODUCT_PLACEHOLDER.engine} · Documents · Intelligence · Trusted Decisions</span>
+            <span>© 2026 CargoTrust AI · Documents · Intelligence · Trusted Decisions</span>
             <span className="font-mono">classify → extract → compare → decide → human</span>
           </div>
         </div>
@@ -556,4 +556,4 @@ export default function LandingPage() {
   );
 }
 
-const PRODUCT_PLACEHOLDER = { engine: 'CargoTrust Engine v3.0' };
+

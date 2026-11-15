@@ -167,7 +167,7 @@ export default function EvaluationPage() {
                   </Ring>
                 </div>
                 <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-[11.5px] text-slate-500">
-                  <b>{latest.version}</b> · run {new Date(latest.at).toLocaleString()} · {latest.total} labeled cases
+                  Run {new Date(latest.at).toLocaleString()} · {latest.total} labeled cases
                 </div>
               </div>
             </M>
