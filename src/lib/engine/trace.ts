@@ -13,6 +13,7 @@ export const METHOD_LABEL: Record<string, string> = {
   text: 'plain text',
   'pdf-text': 'PDF text layer (layout-aware)',
   'pdf-ocr': 'scanned PDF → OCR',
+  'image-ocr': 'photo / image → OCR',
   docx: 'Word document (tables + line breaks)',
   xlsx: 'Excel workbook (label / value rows)',
   none: 'could not be read',
@@ -61,9 +62,12 @@ export function buildTrace(e: ProcessedEmail): TraceStep[] {
 
   const readItems = e.attachments
     .filter((a) => a.kind !== 'other')
-    .map((a) => `${a.kind}: ${METHOD_LABEL[a.method ?? 'text'] ?? a.method}${a.ocrConfidence != null ? ` (OCR confidence ${a.ocrConfidence}%)` : ''}${a.error ? ` — ${a.error}` : ''}`);
+    .map((a) => {
+      const how = a.ai && !a.ai.error ? `${METHOD_LABEL[a.method ?? 'text'] ?? a.method} + AI vision (${a.ai.model})` : METHOD_LABEL[a.method ?? 'text'] ?? a.method;
+      return `${a.kind}: ${how}${a.ocrConfidence != null ? ` (OCR confidence ${a.ocrConfidence}%)` : ''}${a.error ? ` — ${a.error}` : ''}`;
+    });
   const unreadable = e.attachments.some((a) => a.kind !== 'other' && !a.readable);
-  const ocr = e.attachments.some((a) => a.method === 'pdf-ocr');
+  const ocr = e.attachments.some((a) => a.method === 'pdf-ocr' || a.method === 'image-ocr');
   steps.push({
     key: 'read',
     title: unreadable ? 'A document could not be read' : ocr ? 'Scanned document read by OCR' : 'Documents read',

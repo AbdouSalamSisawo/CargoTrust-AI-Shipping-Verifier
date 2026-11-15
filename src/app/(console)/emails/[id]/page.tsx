@@ -57,13 +57,13 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
 
   return (
     <div>
-      <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
         <span className={cx('w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold uppercase',
           att.kind === 'SI' ? 'bg-brand-50 text-brand-600' : att.kind === 'BL' ? 'bg-aqua-50 text-aqua-600' : 'bg-slate-100 text-slate-400')}>
           {att.kind === 'other' ? att.ext : att.kind}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[12.5px] font-semibold text-ink-800 truncate">{att.name}</div>
+        <div className="min-w-0 flex-1 basis-[calc(100%-3rem)]">
+          <div className="text-[12.5px] font-semibold text-ink-800 truncate" title={att.name}>{att.name}</div>
           <div className="text-[11px] text-slate-400">
             {att.kind === 'SI' ? 'Shipping Instruction' : att.kind === 'BL' ? 'Draft Bill of Lading' : 'Unidentified document'}
             {' · '}
@@ -85,16 +85,14 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
             )}
           </div>
         </div>
-        {att.kind !== 'other' && (
-          <span className={cx('text-[9.5px] font-bold uppercase tracking-wider rounded-md px-1.5 py-0.5',
-            att.kind === 'SI' ? 'bg-brand-50 text-brand-500' : 'bg-aqua-50 text-aqua-600')}>{att.kind}</span>
-        )}
+        <div className="basis-full flex items-center justify-end gap-4 pl-12">
         <a href={`/api/emails/${encodeURIComponent(emailId)}/source?att=${encodeURIComponent(att.path)}&raw=1`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-400 hover:text-brand-600 transition-colors inline-flex items-center gap-1 shrink-0" title="Open the original file">
           <Icon name="externalLink" size={12}/>Original
         </a>
         <button onClick={toggle} className="text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors inline-flex items-center gap-1 shrink-0">
           <Icon name="eye" size={12}/>{open ? 'Hide text' : 'What was read'}
         </button>
+        </div>
       </div>
       {open && (
         <div className="mt-1.5 rounded-xl border border-slate-200 bg-navy-950 max-h-80 overflow-auto">
