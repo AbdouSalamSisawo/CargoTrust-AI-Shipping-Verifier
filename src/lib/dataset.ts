@@ -4,21 +4,19 @@ import crypto from 'crypto';
 import type { EmailRecord } from './types';
 import { readDocument, isScanMethod, type ReadResult } from './engine/readers';
 import { transcribeScan, type AiConfig } from './engine/vision';
+import { putFile, getFile, fileExists, deletePrefix } from './files';
 
 /**
  * File access for the engine.
  *
  *   dataset/…            the bundled sample inbox (dataset/inbox/*.json + dataset/attachments/*)
- *   uploads/<id>/<file>  documents uploaded or imported by users (stored in data/uploads/)
+ *   uploads/<id>/<file>  documents uploaded or imported by users (files.ts: data/ or private Blob)
  *
  * Every attachment — text, PDF (text layer or scanned → OCR), Word, Excel,
  * photo — goes through engine/readers.ts. Slow reads (OCR, AI vision) are
- * cached on disk by content hash in data/cache/.
+ * cached by content hash under cache/ in the same file storage.
  */
 const DATASET_DIR = path.join(process.cwd(), 'dataset');
-export const DATA_DIR = path.join(process.cwd(), 'data');
-const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
-const CACHE_DIR = path.join(DATA_DIR, 'cache');
 const READER_VERSION = 'r5';
 const AI_VERSION = 'v1';
 
@@ -41,50 +39,47 @@ export async function loadInbox(): Promise<EmailRecord[]> {
   return records;
 }
 
-/** Absolute path for an attachment reference, refusing anything that escapes its root. */
-export function resolveAttachment(relPath: string): string | null {
-  const isUpload = relPath.startsWith('uploads/');
-  const root = isUpload ? UPLOAD_DIR : DATASET_DIR;
-  const abs = path.resolve(root, isUpload ? relPath.slice('uploads/'.length) : relPath);
-  return abs.startsWith(root + path.sep) ? abs : null;
+/** Absolute path of a bundled sample attachment, refusing anything that escapes the dataset folder. */
+function datasetPath(relPath: string): string | null {
+  const abs = path.resolve(DATASET_DIR, relPath);
+  return abs.startsWith(DATASET_DIR + path.sep) ? abs : null;
 }
+
+const isUploadRef = (relPath: string) => relPath.startsWith('uploads/') && !relPath.split('/').includes('..');
 
 /** Store an uploaded file; returns its attachment reference ("uploads/<id>/<name>"). */
 export async function saveUpload(id: string, name: string, buf: Buffer): Promise<string> {
   const safe = name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'document';
-  const dir = path.join(UPLOAD_DIR, id);
-  await fs.mkdir(dir, { recursive: true });
   let file = safe;
-  for (let n = 2; ; n++) {
-    try {
-      await fs.access(path.join(dir, file));
-      file = safe.replace(/(\.[^.]*)?$/, (ext) => `-${n}${ext}`);
-    } catch {
-      break;
-    }
+  for (let n = 2; await fileExists(`uploads/${id}/${file}`); n++) {
+    file = safe.replace(/(\.[^.]*)?$/, (ext) => `-${n}${ext}`);
   }
-  await fs.writeFile(path.join(dir, file), buf);
-  return `uploads/${id}/${file}`;
+  const ref = `uploads/${id}/${file}`;
+  await putFile(ref, buf);
+  return ref;
 }
 
 export async function deleteUploads(id: string): Promise<void> {
-  await fs.rm(path.join(UPLOAD_DIR, id), { recursive: true, force: true });
+  if (!/^[\w.-]+$/.test(id)) return;
+  await deletePrefix(`uploads/${id}/`);
 }
 
 async function cached<T>(key: string, make: () => Promise<T>, keep: (v: T) => boolean): Promise<T> {
-  const file = path.join(CACHE_DIR, `${key}.json`);
-  try {
-    return JSON.parse(await fs.readFile(file, 'utf8')) as T;
-  } catch {
-    /* not cached */
+  const ref = `cache/${key}.json`;
+  const hit = await getFile(ref);
+  if (hit) {
+    try {
+      return JSON.parse(hit.toString('utf8')) as T;
+    } catch {
+      /* corrupt entry: read again */
+    }
   }
   const v = await make();
   if (keep(v)) {
     try {
-      await fs.mkdir(CACHE_DIR, { recursive: true });
-      await fs.writeFile(file, JSON.stringify(v));
+      await putFile(ref, Buffer.from(JSON.stringify(v)), 'application/json');
     } catch {
-      /* read-only filesystem: skip caching */
+      /* storage unavailable: skip caching */
     }
   }
   return v;
@@ -117,10 +112,9 @@ export async function readAttachment(relPath: string, opts: { ai?: AiConfig | nu
   const hit = readCache.get(key);
   if (hit) return hit;
   let out: ReadResult & { size: number };
-  const abs = resolveAttachment(relPath);
   try {
-    if (!abs) throw new Error('bad path');
-    const buf = await fs.readFile(abs);
+    const buf = await attachmentBytes(relPath);
+    if (!buf) throw new Error('not found');
     out = { ...(await readBuffer(relPath, buf, opts)), size: buf.length };
   } catch {
     out = { text: null, method: 'none', error: 'attachment file not found', size: 0 };
@@ -130,9 +124,10 @@ export async function readAttachment(relPath: string, opts: { ai?: AiConfig | nu
   return out;
 }
 
-/** Raw bytes of an attachment (for download / preview). */
+/** Raw bytes of an attachment (for reading, download and preview). */
 export async function attachmentBytes(relPath: string): Promise<Buffer | null> {
-  const abs = resolveAttachment(relPath);
+  if (relPath.startsWith('uploads/')) return isUploadRef(relPath) ? getFile(relPath) : null;
+  const abs = datasetPath(relPath);
   if (!abs) return null;
   try {
     return await fs.readFile(abs);

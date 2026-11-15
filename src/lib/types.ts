@@ -161,6 +161,8 @@ export interface Settings {
   aiModel: string;
   /** confirm: AI-read scans still go to a human; auto: decide automatically when the AI read is complete and clear. */
   aiScanPolicy: 'confirm' | 'auto';
+  /** Session signing key when AUTH_SECRET is not set and storage is Postgres (never sent to the browser). */
+  authSecret?: string;
   /** Legacy (hackathon scoring server). */
   sdocServerUrl?: string;
 }

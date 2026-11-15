@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDB } from '@/lib/store';
+import { getDB, storageBackend } from '@/lib/store';
+import { filesBackend } from '@/lib/files';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,8 +8,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const db = await getDB();
-    return NextResponse.json({ ok: true, items: Object.keys(db.emails).length });
-  } catch {
+    return NextResponse.json({ ok: true, items: Object.keys(db.emails).length, storage: storageBackend(), files: filesBackend() });
+  } catch (e) {
+    console.error('[cargotrust] health check failed:', e instanceof Error ? e.message : e);
     return NextResponse.json({ ok: false }, { status: 503 });
   }
 }

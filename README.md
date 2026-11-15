@@ -94,6 +94,27 @@ The first boot also loads a **sample inbox of 520 realistic shipping emails** so
 to explore. Remove it under **Settings → Workspace** before going live; your own uploads and imported
 email are kept.
 
+### Vercel (public link with HTTPS)
+
+Serverless hosting has no lasting local disk, so on Vercel CargoTrust keeps its data in **Postgres**
+and its documents in a **private Vercel Blob store**. Both are switched on by environment variables;
+without them it uses `data/` as above.
+
+1. Import the repository in Vercel (framework: Next.js; no build settings to change).
+2. **Storage → Connect Database → Neon** (Postgres). This sets `DATABASE_URL`.
+3. **Storage → Create → Blob**, access **Private**, connected to the project. This sets the Blob credentials.
+4. **Settings → Environment Variables**: set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (first administrator),
+   `AUTH_SECRET` (32+ random characters) and, for AI reading, `ANTHROPIC_API_KEY`.
+5. Deploy. The first request creates the workspace, including the sample inbox unless `SAMPLE_DATA=0`.
+
+To start the hosted copy with an existing local workspace instead, put `DATABASE_URL` and
+`BLOB_READ_WRITE_TOKEN` in `.env.local` (from `vercel env pull`) and run `npm run data:push` once before
+the first visit. It refuses to overwrite a database that already holds a workspace.
+
+`/api/health` reports which storage is in use (`"storage": "postgres", "files": "blob"`). The same two
+variables work on a company server too: point `DATABASE_URL` at any Postgres 13+ to run several
+CargoTrust instances behind a load balancer.
+
 ## Proven, not claimed
 
 | Check | Result |
@@ -154,10 +175,12 @@ src/
 │       └── settings  settings/ai-test  workspace  evaluation  health
 ├── components/                   # shell (session + roles), UI kit, decision trace, reply draft
 └── lib/
-    ├── auth.ts · passwords.ts    # signed sessions, scrypt, role guard, sign-in throttling
-    ├── store.ts                  # data/db.json (atomic writes), audit log, first-run admin, migrations
+    ├── auth.ts · passwords.ts    # signed sessions, scrypt, role guard, sign-in throttling (from the audit log)
+    ├── store.ts                  # getDB() / mutate(), audit log, first-run admin, migrations
+    ├── pgstore.ts                # Postgres backend: one row per record, revision check, row-locked writes
+    ├── files.ts                  # documents and read cache: data/ on disk, or a private Vercel Blob store
     ├── ingest.ts                 # uploads and .eml import (mailparser)
-    ├── dataset.ts                # file storage, cached OCR and AI reads
+    ├── dataset.ts                # sample inbox, attachment reads, cached OCR and AI reads
     └── engine/
         ├── classify.ts           # body cleaning, spam screen, intent scoring
         ├── readers.ts            # byte sniffing; PDF geometry, OCR, photos, DOCX, XLSX → canonical layout
@@ -178,12 +201,17 @@ src/
   produce `OK`.
 * **Runs on-premise.** One container, one data volume, OCR model bundled; the only outbound call is
   the optional AI reading.
-* **JSON file store.** Zero-configuration persistence for a single server. Every consumer goes
-  through `getDB()` / `mutate()`, so moving to Postgres is a single-module change.
+* **Two storage modes, one code path.** With no configuration everything lives in `data/` (one JSON
+  document with atomic writes, plus files), which suits a laptop or a single container. With
+  `DATABASE_URL` and a Blob store it runs on Postgres and object storage, for serverless hosting or
+  several instances. Every consumer goes through `getDB()` / `mutate()`; each instance keeps the
+  workspace in memory, checks one revision number per read, and writes only changed records inside a
+  row-locked transaction.
 
 ## Limitations and next steps
 
-* The JSON store suits one server and a small team. Larger deployments should move to Postgres.
+* Each server instance holds the whole workspace in memory. That is fast and simple up to tens of
+  thousands of items; beyond that, queries should move into SQL.
 * Email arrives by `.eml` import; a live mailbox connection (IMAP / Microsoft 365) is the natural next
   step, as is single sign-on.
 * Drafted replies open in the operator's mail client; CargoTrust does not send email itself.

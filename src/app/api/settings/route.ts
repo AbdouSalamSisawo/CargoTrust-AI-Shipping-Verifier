@@ -8,8 +8,9 @@ export const dynamic = 'force-dynamic';
 
 /** Settings without secrets: the API key never leaves the server. */
 function publicSettings(s: Settings) {
-  const { aiApiKey: _secret, ...rest } = s;
+  const { aiApiKey: _secret, authSecret: _signing, ...rest } = s;
   void _secret;
+  void _signing;
   return { ...rest, ai: aiStatus(s) };
 }
 

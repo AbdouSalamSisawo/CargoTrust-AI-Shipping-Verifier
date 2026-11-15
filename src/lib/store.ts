@@ -1,18 +1,24 @@
 /**
- * Persistence: one JSON document (data/db.json) written through a serialized
- * write chain. Holds processed emails, review cases, users, the audit log and
- * settings. Every consumer goes through getDB() / mutate(), so the module can
- * be swapped for Postgres without touching routes or the engine.
+ * Persistence for processed emails, review cases, users, the audit log and
+ * settings. Every consumer goes through getDB() / mutate(); the backend is
+ * chosen by the environment:
  *
- * First boot creates an administrator account (credentials written to
- * data/admin-credentials.txt) and, unless disabled, loads the bundled sample
- * inbox so the console has data to show.
+ *   DATABASE_URL set  Postgres (pgstore.ts): any number of server instances,
+ *                     e.g. Vercel with Neon, or a company database server
+ *   otherwise         one JSON document, data/db.json, with atomic writes
+ *                     (single server: laptop or one Docker container)
+ *
+ * First boot creates an administrator account (from ADMIN_EMAIL /
+ * ADMIN_PASSWORD, or generated and written to data/admin-credentials.txt and
+ * the server log) and, unless SAMPLE_DATA=0, loads the bundled sample inbox.
  */
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { loadInbox, readAttachment, DATA_DIR } from './dataset';
+import { loadInbox, readAttachment } from './dataset';
+import { DATA_DIR } from './files';
+import { databaseUrl, pgLoad, pgMutate, pgRevision, type PgState } from './pgstore';
 import { processEmail, detectAttachmentKinds } from './engine/pipeline';
 import { buildReviewCase } from './engine/review';
 import { DEFAULT_AI_MODEL, type AiConfig } from './engine/vision';
@@ -169,7 +175,7 @@ function seedAdmin(db: DBShape) {
 }
 
 /** Bring a db.json written by an older version up to the current shape. */
-function migrate(raw: Partial<DBShape>): DBShape {
+export function migrate(raw: Partial<DBShape>): DBShape {
   const db: DBShape = {
     version: DB_VERSION,
     settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
@@ -184,9 +190,21 @@ function migrate(raw: Partial<DBShape>): DBShape {
   // v3: the default AI model moved from Opus to Haiku; installs still on the old default follow it
   if ((raw.version ?? 0) < 3 && db.settings.aiModel === 'claude-opus-5-5') db.settings.aiModel = DEFAULT_AI_MODEL;
   for (const e of Object.values(db.emails)) e.source ??= 'sample';
+  // shared session key for multi-instance hosting when AUTH_SECRET is not configured
+  if (storageBackend() === 'postgres' && !db.settings.authSecret) db.settings.authSecret = crypto.randomBytes(32).toString('hex');
   seedAdmin(db);
   return db;
 }
+
+export const storageBackend = (): 'postgres' | 'file' => (databaseUrl() ? 'postgres' : 'file');
+
+async function freshDB(): Promise<DBShape> {
+  const db = migrate({ sampleData: process.env.SAMPLE_DATA !== '0' });
+  if (db.sampleData) Object.assign(db, await sampleEmails(db.settings));
+  return db;
+}
+
+/* ---- file backend ---- */
 
 let dbPromise: Promise<DBShape> | null = null;
 
@@ -197,7 +215,7 @@ async function writeDB(db: DBShape) {
   await fs.rename(tmp, DB_FILE); // atomic replace: a crash never leaves a half-written file
 }
 
-export async function getDB(): Promise<DBShape> {
+function fileDB(): Promise<DBShape> {
   if (!dbPromise) {
     dbPromise = (async () => {
       let raw: Partial<DBShape> | null = null;
@@ -211,8 +229,7 @@ export async function getDB(): Promise<DBShape> {
         if (raw.version !== DB_VERSION) await writeDB(db);
         return db;
       }
-      const db = migrate({ sampleData: process.env.SAMPLE_DATA !== '0' });
-      if (db.sampleData) Object.assign(db, await sampleEmails(db.settings));
+      const db = await freshDB();
       await writeDB(db);
       return db;
     })();
@@ -223,13 +240,47 @@ export async function getDB(): Promise<DBShape> {
   return dbPromise;
 }
 
-/* serialized write chain — avoids interleaved fs writes */
+/* ---- postgres backend ---- */
+
+let pgState: PgState | null = null;
+let pgLoading: Promise<PgState> | null = null;
+
+async function pgDB(): Promise<DBShape> {
+  if (pgState) {
+    // another instance may have written since: one small query to check
+    const rev = await pgRevision();
+    if (rev === pgState.rev) return pgState.db;
+  }
+  pgLoading ??= pgLoad(migrate, freshDB, DB_VERSION)
+    .then((st) => (pgState = st))
+    .finally(() => {
+      pgLoading = null;
+    });
+  return (await pgLoading).db;
+}
+
+export async function getDB(): Promise<DBShape> {
+  return storageBackend() === 'postgres' ? pgDB() : fileDB();
+}
+
+/* serialized write chain: one change at a time per server instance */
 let chain: Promise<unknown> = Promise.resolve();
 
 export async function mutate<T>(fn: (db: DBShape) => Promise<T> | T): Promise<T> {
   await getDB();
   const run = async (): Promise<T> => {
-    const db = await getDB();
+    if (storageBackend() === 'postgres') {
+      if (!pgState) await pgDB();
+      try {
+        const { out, state } = await pgMutate(pgState!, migrate, fn);
+        pgState = state;
+        return out;
+      } catch (e) {
+        pgState = null; // the in-memory copy may hold half of a rolled-back change
+        throw e;
+      }
+    }
+    const db = await fileDB();
     const out = await fn(db);
     await writeDB(db);
     return out;

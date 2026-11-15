@@ -3,8 +3,11 @@
  *
  * - Passwords: scrypt with a per-user random salt, compared in constant time.
  * - Sessions: an HMAC-SHA256 signed cookie (`ct_session`) carrying the user id
- *   and expiry. The signing key is AUTH_SECRET from the environment, or a
- *   random key generated on first boot and kept in data/.auth-secret.
+ *   and expiry. The signing key is AUTH_SECRET from the environment; without
+ *   it, a random key generated on first boot and kept in data/.auth-secret
+ *   (file storage) or in the database (Postgres, shared by every instance).
+ * - Sign-in throttling counts recent failed attempts in the audit log, so it
+ *   holds across restarts and server instances.
  * - Every API route calls requireUser(); the role decides what it may do:
  *     viewer   read everything
  *     operator viewer + upload/import documents, resolve reviews, re-run checks
@@ -15,8 +18,8 @@ import fs from 'fs';
 import path from 'path';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import type { PublicUser, Role, User } from './types';
-import { getDB } from './store';
+import type { DBShape, PublicUser, Role, User } from './types';
+import { getDB, storageBackend } from './store';
 
 export const SESSION_COOKIE = 'ct_session';
 const SESSION_DAYS = 7;
@@ -25,12 +28,14 @@ const RANK: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 };
 /* ------------------------------------------------------------------ secret */
 
 let secret: Buffer | null = null;
-function signingKey(): Buffer {
-  if (secret) return secret;
-  if (process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 16) {
-    secret = Buffer.from(process.env.AUTH_SECRET, 'utf8');
-    return secret;
+async function signingKey(): Promise<Buffer> {
+  if (process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 16) return Buffer.from(process.env.AUTH_SECRET, 'utf8');
+  if (storageBackend() === 'postgres') {
+    const key = (await getDB()).settings.authSecret;
+    if (!key) throw new Error('session key missing from the database');
+    return Buffer.from(key, 'hex');
   }
+  if (secret) return secret;
   const file = path.join(process.cwd(), 'data', '.auth-secret');
   try {
     secret = Buffer.from(fs.readFileSync(file, 'utf8').trim(), 'hex');
@@ -56,18 +61,18 @@ function b64url(buf: Buffer): string {
   return buf.toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-export function createSessionToken(userId: string): { token: string; maxAge: number } {
+export async function createSessionToken(userId: string): Promise<{ token: string; maxAge: number }> {
   const maxAge = SESSION_DAYS * 24 * 3600;
   const payload = b64url(Buffer.from(JSON.stringify({ uid: userId, exp: Date.now() + maxAge * 1000 })));
-  const sig = b64url(crypto.createHmac('sha256', signingKey()).update(payload).digest());
+  const sig = b64url(crypto.createHmac('sha256', await signingKey()).update(payload).digest());
   return { token: `${payload}.${sig}`, maxAge };
 }
 
-function readSessionToken(token: string | undefined): string | null {
+async function readSessionToken(token: string | undefined): Promise<string | null> {
   if (!token) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
-  const want = b64url(crypto.createHmac('sha256', signingKey()).update(payload).digest());
+  const want = b64url(crypto.createHmac('sha256', await signingKey()).update(payload).digest());
   const a = Buffer.from(sig);
   const b = Buffer.from(want);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
@@ -105,7 +110,7 @@ export function toPublic(u: User): PublicUser {
 
 /** The signed-in user, or null. */
 export async function currentUser(): Promise<User | null> {
-  const uid = readSessionToken(cookies().get(SESSION_COOKIE)?.value);
+  const uid = await readSessionToken(cookies().get(SESSION_COOKIE)?.value);
   if (!uid) return null;
   const db = await getDB();
   const u = db.users[uid];
@@ -144,22 +149,28 @@ export function guarded<A extends unknown[]>(
 
 /* ------------------------------------------------------- login rate limit */
 
-const attempts = new Map<string, { n: number; until: number }>();
+const LOCK_AFTER = 5;
+const WINDOW_MS = 15 * 60_000;
 
-/** Returns seconds to wait, or 0 when another attempt is allowed. */
-export function loginBlocked(key: string): number {
-  const a = attempts.get(key);
-  if (!a || a.until < Date.now()) return 0;
-  return a.n >= 5 ? Math.ceil((a.until - Date.now()) / 1000) : 0;
-}
-
-export function loginFailed(key: string) {
-  const a = attempts.get(key);
-  const now = Date.now();
-  if (!a || a.until < now) attempts.set(key, { n: 1, until: now + 15 * 60_000 });
-  else a.n++;
-}
-
-export function loginSucceeded(key: string) {
-  attempts.delete(key);
+/**
+ * Seconds to wait before another attempt for this email from this address,
+ * or 0. Counts `auth.failed` events in the last 15 minutes since the last
+ * successful sign-in, so the limit survives restarts and holds across instances.
+ */
+export function loginBlocked(db: DBShape, email: string, ip: string): number {
+  const since = Date.now() - WINDOW_MS;
+  const from = `Failed sign-in from ${ip}`;
+  let n = 0;
+  let newest = 0;
+  for (const ev of db.audit) {
+    const t = Date.parse(ev.at);
+    if (t < since) break; // newest first
+    if (ev.target !== email) continue;
+    if (ev.action === 'auth.login') break;
+    if (ev.action === 'auth.failed' && ev.detail === from) {
+      n++;
+      newest ||= t;
+    }
+  }
+  return n >= LOCK_AFTER ? Math.max(1, Math.ceil((newest + WINDOW_MS - Date.now()) / 1000)) : 0;
 }
