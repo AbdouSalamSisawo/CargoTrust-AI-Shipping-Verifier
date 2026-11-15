@@ -5,8 +5,7 @@ export const PRODUCT = {
   sub: 'Intelligent Shipping Document Verification',
   subShort: 'AI Document Verification',
   pillars: ['Documents', 'Intelligence', 'Trusted Decisions'],
-  engine: 'CargoTrust Engine v2.1',
-  challenge: 'SDOC Hackathon · Shipping Document Verification',
+  engine: 'CargoTrust Engine v3.0',
 };
 
 export const CATEGORIES = {

@@ -53,7 +53,7 @@ const CAPABILITIES = [
     bg: '#ECFEFF',
     k: '02 · Extract',
     title: 'Read the documents',
-    body: 'Text, PDF, Word, Excel and scanned PDFs are rebuilt into one layout from page geometry, then the seven fields are aligned by meaning — with the exact source line kept as evidence for every value.',
+    body: 'Text, PDF, Word, Excel, scanned PDFs and phone photos are rebuilt into one layout from page geometry, then the seven fields are aligned by meaning — with the exact source line kept as evidence for every value.',
   },
   {
     icon: 'gitCompare',
@@ -86,7 +86,7 @@ const FIELDS = [
 const STEPS = [
   { icon: 'inbox', title: 'Receive', body: 'The inbox is loaded — 520 JSON email records with SI / BL attachments, exactly as the operations team receives them.' },
   { icon: 'sparkles', title: 'Classify', body: 'Every email is scored into one of five categories from the cleaned body, not the subject. Spam and phishing are screened first; a thread that only asks for a draft BL is tracked, not escalated.' },
-  { icon: 'scan', title: 'Read & extract', body: 'Only document-check requests continue. Each file is sniffed by its bytes, rebuilt from layout (PDF geometry, Word tables, Excel rows, OCR for scans) and its fields aligned by meaning.' },
+  { icon: 'scan', title: 'Read & extract', body: 'Only document-check requests continue. Each file is sniffed by its bytes, rebuilt from layout (PDF geometry, Word tables, Excel rows; scans and photos by OCR and AI vision) and its fields aligned by meaning.' },
   { icon: 'gitCompare', title: 'Compare', body: 'Seven fields, side by side, SI as the reference. Weights in kilograms (21.577 MT ≡ 21,577 KG), ports by city + UN/LOCODE, companies by exact legal name.' },
   { icon: 'shieldCheck', title: 'Decide', body: 'OK when all seven match, MISMATCH with the exact differing fields, or NEEDS_REVIEW with a reason — missing attachment, unreadable, wrong type or missing value.' },
   { icon: 'userCheck', title: 'Human in the loop', body: 'Reviewers approve, correct or reject escalations. Corrections recompute the comparison and update the report — the audit trail keeps who decided what.' },
@@ -96,8 +96,8 @@ const FEATURES = [
   { icon: 'shieldCheck', title: 'Zero-hallucination by design', body: 'A deterministic engine: no LLM in the decision path, no invented values. Every field carries its source line, and every email shows a step-by-step decision trace.' },
   { icon: 'userCheck', title: 'Human-in-the-loop console', body: 'A dedicated review queue with evidence panels, per-field correction inputs and one-click approve / correct / reject. Corrected values recompute the comparison instantly.' },
   { icon: 'shuffle', title: 'Normalization that kills false alarms', body: 'Legal suffixes (PTE LTD vs LTD), unit conversions (MT → KG), UN/LOCODE ports and address continuation lines are canonicalized before comparison — not fuzzy-matched.' },
-  { icon: 'fileText', title: 'Every format, read by layout', body: 'PDFs via page geometry (labels, value columns, container tables), Word tables with their line breaks, Excel rows — and image-only scans through OCR, sent to a human as a pre-check.' },
-  { icon: 'gauge', title: 'Proven, not claimed', body: '1.0000 on the organizers’ scorer, plus a mutation benchmark: 883 rewritten documents the engine never saw — 100% of benign rewrites stay clean, 100% of planted defects caught.' },
+  { icon: 'camera', title: 'Scans and phone photos, read by AI', body: 'Image-only PDFs and photos of paper BLs are transcribed by Claude’s vision model — told to copy, never correct — and cross-checked against OCR. The deterministic engine still makes every decision.' },
+  { icon: 'gauge', title: 'Proven, not claimed', body: 'Scored 1.0000 by the Averis × Monash 2026 benchmark’s own grader on 520 emails, plus a mutation benchmark: 883 rewritten documents the engine never saw — 100% handled correctly.' },
   { icon: 'send', title: 'The next email, drafted', body: 'Every decision comes with the reply an operator would send: an amendment request listing SI vs BL values, a confirmation, or a request for the missing document.' },
 ];
 
@@ -107,8 +107,8 @@ const TECH = [
   { k: 'Tailwind CSS', v: 'The entire design system: tokens, motion and components in one place.' },
   { k: 'Deterministic engine', v: 'classify → read → extract → normalize → compare → decide — pure, typed functions with a decision trace.' },
   { k: 'pdf.js · Tesseract · SheetJS', v: 'Layout-aware PDF reading, OCR for scans (cached), Excel and Word parsing — all in Node, no external services.' },
-  { k: 'Offline scoring loop', v: 'npm run score grades the engine with the organizers’ scorer; npm run robustness runs the mutation benchmark.' },
-  { k: 'SDOC dataset', v: 'The official 520-email participant bundle ships inside the repo — the console runs on the real data.' },
+  { k: 'Accounts & audit trail', v: 'scrypt-hashed passwords, signed sessions, admin / operator / viewer roles, and a log of every action.' },
+  { k: 'Docker, on-premise', v: 'One container, one data volume. Runs on a laptop for a demo or on a server inside your network.' },
 ];
 
 function SectionTag({ children }: { children: React.ReactNode }) {
@@ -174,8 +174,7 @@ export default function LandingPage() {
             ))}
           </nav>
           <div className="flex-1"/>
-          <Link href="/try" className="hidden sm:inline-flex text-[13px] font-semibold text-slate-500 hover:text-brand-600 transition-colors">Try it live</Link>
-          <Link href="/login" className="btn-primary btn-sm">Launch console <Icon name="arrowRight" size={14}/></Link>
+          <Link href="/login" className="btn-primary btn-sm">Sign in <Icon name="arrowRight" size={14}/></Link>
         </div>
       </header>
 
@@ -185,7 +184,7 @@ export default function LandingPage() {
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl opacity-40 animate-drift pointer-events-none" style={{ background: 'radial-gradient(circle,#2563EB33,transparent 65%)' }}/>
         <div className="max-w-6xl mx-auto px-4 lg:px-6 pt-16 pb-20 grid lg:grid-cols-2 gap-14 items-center relative">
           <div>
-            <SectionTag>SDOC Hackathon · Shipping Document Verification</SectionTag>
+            <SectionTag>Shipping document verification</SectionTag>
             <h1 className="font-display text-[44px] sm:text-[54px] leading-[1.05] font-bold text-navy-900 tracking-tight mt-5">
               From email inbox to <span className="text-grad">discrepancy report.</span>
             </h1>
@@ -196,13 +195,13 @@ export default function LandingPage() {
               When it cannot decide, it asks a human instead of guessing.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
-              <Link href="/login" className="btn-primary text-[15px] py-3 px-6">Launch the console <Icon name="arrowRight" size={16}/></Link>
-              <Link href="/try" className="btn-ghost text-[15px] py-3 px-6"><Icon name="play" size={15}/>Try it live</Link>
+              <Link href="/login" className="btn-primary text-[15px] py-3 px-6">Sign in to the console <Icon name="arrowRight" size={16}/></Link>
+              <a href="#how" className="btn-ghost text-[15px] py-3 px-6"><Icon name="play" size={15}/>How it works</a>
               <a href="#how" className="btn-ghost text-[15px] py-3 px-6">How it works</a>
             </div>
-            <p className="text-[11.5px] text-slate-400 mt-3">Demo build — any credentials (or Google) sign in to the console.</p>
+            <p className="text-[11.5px] text-slate-400 mt-3">Accounts are created by your administrator.</p>
             <div className="flex flex-wrap gap-x-8 gap-y-4 mt-8">
-              {[['1.0000', 'organizer scorer — every axis perfect'], ['46/46', 'planted defects caught, exact fields'], ['883/883', 'unseen rewritten documents handled'], ['0', 'false alarms']].map(([v, l]) => (
+              {[['1.0000', 'independent benchmark score (520 emails)'], ['46/46', 'planted defects caught, exact fields'], ['883/883', 'unseen rewritten documents handled'], ['0', 'false alarms']].map(([v, l]) => (
                 <div key={l}>
                   <div className="font-display text-[26px] font-bold text-navy-900">{v}</div>
                   <div className="text-[11.5px] text-slate-400 mt-0.5 max-w-[180px]">{l}</div>
@@ -399,12 +398,12 @@ export default function LandingPage() {
             <div className="max-w-2xl">
               <SectionTag>Features</SectionTag>
               <h2 className="font-display text-[32px] sm:text-[38px] font-bold text-navy-900 tracking-tight mt-4">
-                Built for the judging criteria, not just the demo.
+                Built for the desk that signs off the BL.
               </h2>
             </div>
             <p className="text-slate-500 text-[13.5px] max-w-sm leading-relaxed">
-              Scoring weights end-to-end correctness and reliability. So the engine escalates instead of guessing,
-              shows evidence for every value, and measures itself on every run.
+              A wrong Bill of Lading costs amendment fees, demurrage and released cargo. So the engine escalates instead
+              of guessing, shows evidence for every value, and keeps a record of who decided what.
             </p>
           </div>
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 mt-12">
@@ -440,10 +439,10 @@ export default function LandingPage() {
           </div>
           <div className="mt-12 grid md:grid-cols-2 gap-6">
             {[
-              ['/screens/dashboard.png', 'Mission control', 'Real-time aggregates computed from the processed inbox — nothing hard-coded.'],
+              ['/screens/dashboard.png', 'Dashboard', 'Live aggregates computed from the processed inbox — nothing hard-coded.'],
               ['/screens/email-trace.png', 'Decision trace', 'Every email shows how the engine decided — read method, document type, fields, comparison.'],
-              ['/screens/evaluation.png', 'Proof, not claims', 'Organizer scorer 1.0000 plus a mutation benchmark of 883 unseen rewritten documents.'],
-              ['/screens/try.png', 'Try to fool it', 'Upload your own SI and BL — PDF, Word, Excel or a scan — and the production pipeline checks them live.'],
+              ['/screens/new-check.png', 'New check', 'Upload an SI and draft BL — PDF, Word, Excel, scan or phone photo — or import customer emails as .eml.'],
+              ['/screens/activity.png', 'Audit trail', 'Every sign-in, check, review decision and setting change, with who and when.'],
             ].map(([src, title, sub]) => (
               <figure key={src} className="rounded-2xl overflow-hidden border border-white/10 bg-white/[.04] backdrop-blur group">
                 <div className="relative aspect-[16/10] overflow-hidden bg-navy-900">
@@ -494,27 +493,26 @@ export default function LandingPage() {
                 <LogoMark size={40}/>
                 <div>
                   <div className="font-display text-[17px] font-bold text-navy-900">Run it yourself</div>
-                  <div className="text-[12px] text-slate-400">Two commands, real data, no external services.</div>
+                  <div className="text-[12px] text-slate-400">One container on your own server — or two commands on a laptop.</div>
                 </div>
               </div>
               <div className="mt-5 rounded-xl bg-navy-950 p-4 font-mono text-[12px] leading-relaxed text-white/80">
-                <div><span className="text-aqua-300">$</span> npm install</div>
-                <div><span className="text-aqua-300">$</span> npm run dev</div>
-                <div className="text-emerald-300 mt-1">✓ engine processed 520 emails on boot</div>
+                <div><span className="text-aqua-300">$</span> docker compose up -d</div>
+                <div className="text-emerald-300 mt-1">✓ admin account created · sample inbox loaded</div>
                 <div className="text-white/40">→ http://localhost:3000</div>
               </div>
               <div className="mt-5 space-y-2.5 text-[12.5px] text-slate-500">
                 {[
-                  ['database', 'First boot runs the engine over the shipped dataset and persists results'],
-                  ['userCheck', 'Review decisions and evaluation runs persist on top of it'],
-                  ['download', 'Download submission.json straight from the console header'],
+                  ['users', 'First boot creates an administrator; add your team with roles'],
+                  ['database', 'A sample inbox for training — removable in one click'],
+                  ['sparkles', 'Add an Anthropic API key to turn on AI reading for scans'],
                 ].map(([ic, t]) => (
                   <div key={t} className="flex items-center gap-2.5">
                     <Icon name={ic} size={14} className="text-brand-500 shrink-0"/>{t}
                   </div>
                 ))}
               </div>
-              <Link href="/login" className="btn-primary w-full mt-6">Launch the console <Icon name="arrowRight" size={15}/></Link>
+              <Link href="/login" className="btn-primary w-full mt-6">Sign in <Icon name="arrowRight" size={15}/></Link>
             </div>
           </div>
         </div>
@@ -527,8 +525,8 @@ export default function LandingPage() {
             <div className="max-w-md">
               <Logo sub/>
               <p className="text-[12.5px] text-slate-400 mt-3 leading-relaxed">
-                Built for the SDOC hackathon problem statement “Shipping document verification — from email inbox to
-                discrepancy report”. Runs on the official participant dataset.
+                Verifies Shipping Instructions against draft Bills of Lading — from email inbox to discrepancy report,
+                with a human in the loop for everything the engine cannot decide.
               </p>
             </div>
             <div className="flex flex-wrap gap-x-12 gap-y-6 text-[13px]">
@@ -543,7 +541,6 @@ export default function LandingPage() {
               <div>
                 <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-slate-300 mb-3">Engine</div>
                 <div className="space-y-2">
-                  <Link href="/api/submission" prefetch={false} className="block font-semibold text-slate-500 hover:text-brand-600 transition-colors">submission.json</Link>
                   <a href="#features" className="block font-semibold text-slate-500 hover:text-brand-600 transition-colors">Features</a>
                   <a href="#tech" className="block font-semibold text-slate-500 hover:text-brand-600 transition-colors">Tech stack</a>
                 </div>
