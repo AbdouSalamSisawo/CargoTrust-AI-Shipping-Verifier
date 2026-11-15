@@ -241,8 +241,9 @@ function AiSection({ s, onSaved }: { s: PublicSettings; onSaved: (s: PublicSetti
           icon={<Icon name="key" size={15}/>}
           disabled={ai.keySource === 'environment'}
         />
-        <TextField placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} icon={<Icon name="cpu" size={15}/>} disabled={ai.modelFromEnv}/>
+        <TextField placeholder="Model (claude-haiku-5-5)" title="claude-haiku-5-5 is fast and low-cost; claude-opus-5-5 is the most accurate" value={model} onChange={(e) => setModel(e.target.value)} icon={<Icon name="cpu" size={15}/>} disabled={ai.modelFromEnv}/>
       </div>
+      <p className="mt-2 text-[11.5px] text-ink-400">Model: <span className="font-mono">claude-haiku-5-5</span> (default) is fast and low-cost. <span className="font-mono">claude-opus-5-5</span> reads badly degraded scans more accurately and costs more per page. Usage is billed to the API key&apos;s Anthropic account.</p>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <button onClick={() => save({ ...(key ? { aiApiKey: key } : {}), aiModel: model }, 'AI settings saved.').then(() => setKey(''))} disabled={busy !== '' || (!key && model === s.aiModel)} className="btn-primary btn-sm"><Icon name="check" size={14}/>Save</button>
         <button onClick={test} disabled={busy !== ''} className="btn-ghost btn-sm"><Icon name={busy === 'test' ? 'loader' : 'zap'} size={14} className={busy === 'test' ? 'animate-spin' : ''}/>Test connection</button>

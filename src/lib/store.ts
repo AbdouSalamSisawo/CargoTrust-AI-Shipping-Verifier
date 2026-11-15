@@ -21,7 +21,7 @@ import type { ReadResult } from './engine/readers';
 import type { AuditEvent, DBShape, EmailRecord, ProcessedEmail, ReviewCase, Settings, User } from './types';
 
 const DB_FILE = path.join(DATA_DIR, 'db.json');
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const AUDIT_CAP = 5000;
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -181,6 +181,8 @@ function migrate(raw: Partial<DBShape>): DBShape {
     sampleData: raw.sampleData ?? true,
   };
   delete db.settings.sdocServerUrl;
+  // v3: the default AI model moved from Opus to Haiku; installs still on the old default follow it
+  if ((raw.version ?? 0) < 3 && db.settings.aiModel === 'claude-opus-5-5') db.settings.aiModel = DEFAULT_AI_MODEL;
   for (const e of Object.values(db.emails)) e.source ??= 'sample';
   seedAdmin(db);
   return db;

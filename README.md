@@ -34,8 +34,8 @@ the decisions that need judgement.
 Image-only PDFs and phone photos have no text layer. OCR reads them poorly: on a clean photo,
 Tesseract still turns `APRIL FAR EAST (M) SDN BHD` into `(M) SDN BHD` and misses the weight.
 
-With an Anthropic API key, CargoTrust sends the page images to **Claude (`claude-opus-5-5`)**, which
-transcribes the document into the same `Label: value` layout the other readers produce. The model is
+With an Anthropic API key, CargoTrust sends the page images to **Claude (`claude-haiku-5-5` by
+default; `claude-opus-5-5` for the most accurate reads of badly degraded scans)**, which transcribes the document into the same `Label: value` layout the other readers produce. The model is
 told to copy exactly what is printed and never correct, normalise or complete a value, and to mark
 anything it cannot read. The transcription then goes through the **same deterministic extractor and
 comparator**; the AI never decides whether documents match. OCR still runs as an independent
@@ -48,6 +48,8 @@ An administrator chooses what happens next:
   text PDF; anything marked unclear still goes to a person.
 
 Only page images of scans are sent to the API. Text PDFs, Word and Excel files are read locally.
+Each organisation uses its own API key (Settings → AI reading, or `ANTHROPIC_API_KEY`), so usage is
+billed to its own Anthropic account and its documents go through its own data agreement.
 Without a key, everything works; scans are read by OCR and always go to a person.
 `npm run check:ai` tests this decision path offline, without a key.
 

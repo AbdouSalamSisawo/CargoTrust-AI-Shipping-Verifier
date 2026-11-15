@@ -31,7 +31,7 @@ const scan = (ai: string, unclear: string[] = []): ReadResult => ({
   text: OCR_NOISE(ai),
   method: 'image-ocr',
   ocrConfidence: 58,
-  ai: { text: ai, model: 'claude-opus-5-5', unclear },
+  ai: { text: ai, model: 'claude-haiku-5-5', unclear },
 });
 
 const rec = {
@@ -68,7 +68,7 @@ const check = (name: string, ok: boolean, detail: string) => {
   check('auto: planted weight mismatch caught', e.status === 'MISMATCH' && e.defectFields.join() === 'gross_weight_kg', `${e.status} ${e.defectFields}`);
 }
 {
-  const failed: ReadResult = { text: OCR_NOISE(SI), method: 'image-ocr', ocrConfidence: 58, ai: { text: null, model: 'claude-opus-5-5', unclear: [], error: 'the Anthropic API key was rejected' } };
+  const failed: ReadResult = { text: OCR_NOISE(SI), method: 'image-ocr', ocrConfidence: 58, ai: { text: null, model: 'claude-haiku-5-5', unclear: [], error: 'the Anthropic API key was rejected' } };
   const e = processEmail(rec, { 'scan_SI.jpg': failed, 'scan_BL.jpg': failed }, { aiScanPolicy: 'auto' });
   check('AI failure falls back to OCR and escalates', e.status === 'NEEDS_REVIEW' && (e.notes ?? []).some((n) => n.includes('read by OCR only')), `${e.status} ${e.notes}`);
 }

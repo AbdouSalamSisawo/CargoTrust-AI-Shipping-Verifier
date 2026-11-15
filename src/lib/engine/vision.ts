@@ -23,7 +23,11 @@ export interface AiConfig {
   model: string;
 }
 
-export const DEFAULT_AI_MODEL = 'claude-opus-5-5';
+/** Haiku: fast and low-cost, ample for transcription. Set claude-opus-5-5 in Settings for the most accurate reads. */
+export const DEFAULT_AI_MODEL = 'claude-haiku-5-5';
+
+/** Haiku models have no server-side fallback; sending the parameter to them is rejected or ignored. */
+const supportsFallback = (model: string) => !/haiku/i.test(model);
 
 const Transcription = z.object({
   document_type: z.enum(['shipping_instruction', 'bill_of_lading', 'invoice', 'packing_list', 'certificate', 'other']),
@@ -51,8 +55,7 @@ export async function transcribeScan(buf: Buffer, ext: string, cfg: AiConfig): P
     const res = await client.beta.messages.parse({
       model: cfg.model,
       max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
+      ...(supportsFallback(cfg.model) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
       output_config: { effort: 'medium', format: betaZodOutputFormat(Transcription) },
       system: SYSTEM,
       messages: [
