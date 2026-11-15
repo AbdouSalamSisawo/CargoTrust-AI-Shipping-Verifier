@@ -46,6 +46,12 @@ export interface ProcessedEmail {
   category: Category;
   categoryScores?: Record<string, number>;
   signals?: string[];
+  /** For document emails: did the sender ask us to compare, or ask for a draft BL? */
+  docIntent?: 'compare' | 'request_document' | 'none';
+  /** Which component made the category decision. */
+  decidedBy?: 'rule' | 'llm' | 'human';
+  /** Document thread with no SI/BL yet — tracked, not escalated. */
+  awaitingDocuments?: boolean;
   confidence: number;
   status: Status;
   defectFields: FieldKey[];

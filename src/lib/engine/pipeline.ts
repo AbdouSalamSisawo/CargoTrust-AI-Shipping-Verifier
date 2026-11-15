@@ -62,6 +62,8 @@ export function processEmail(rec: EmailRecord, texts: Record<string, string | nu
     category: cls.category,
     categoryScores: cls.scores,
     signals: cls.signals,
+    docIntent: cls.docIntent,
+    decidedBy: cls.decidedBy,
     confidence: cls.confidence,
     status: 'OK',
     defectFields: [],
@@ -81,6 +83,17 @@ export function processEmail(rec: EmailRecord, texts: Record<string, string | nu
   /* ---- document-check path ---- */
   const siAtt = attachments.find((a) => a.kind === 'SI');
   const blAtt = attachments.find((a) => a.kind === 'BL');
+
+  if (!siAtt && !blAtt && cls.docIntent !== 'compare') {
+    // A thread asking someone to *send* the draft BL: there is nothing to compare
+    // yet, so there is nothing to escalate either. It is tracked, not flagged.
+    email.awaitingDocuments = true;
+    email.summary =
+      cls.docIntent === 'request_document'
+        ? 'Draft BL requested for checking — no documents attached yet. The comparison runs when the SI and draft BL arrive.'
+        : 'Document thread without attachments — nothing to compare yet.';
+    return email;
+  }
 
   if (!siAtt || !blAtt) {
     email.status = 'NEEDS_REVIEW';
