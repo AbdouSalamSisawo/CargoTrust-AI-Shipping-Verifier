@@ -44,8 +44,8 @@ export function PortScene({ className = '' }: { className?: string }) {
           <stop offset="1" stopColor="#091626"/>
         </linearGradient>
         <linearGradient id="ps-fade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#091626" stopOpacity="1"/>
-          <stop offset=".35" stopColor="#091626" stopOpacity="0"/>
+          <stop offset="0" stopColor="#091626" stopOpacity=".55"/>
+          <stop offset=".25" stopColor="#091626" stopOpacity="0"/>
         </linearGradient>
       </defs>
 

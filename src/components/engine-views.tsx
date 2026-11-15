@@ -67,7 +67,7 @@ export function ReplyDraft({ email, draft, organisation }: { email?: ProcessedEm
   };
   return (
     <div className="card p-5">
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-[14px] font-semibold text-ink-900 flex items-center gap-2"><Icon name="send" size={15} className="text-brand-500"/>Draft reply · {d.purpose}</h3>
           <p className="text-[11.5px] text-ink-400 mt-0.5">To {d.to}. Written from the comparison results only. Review it before sending.</p>

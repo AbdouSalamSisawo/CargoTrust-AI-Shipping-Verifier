@@ -35,7 +35,7 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
       ? 'Scanned document(s) without a text layer. OCR pre-filled the values below; confirm them against the scan before the result is released.'
       : 'One or both documents cannot be read (corrupt, encrypted or garbled). The comparison was not attempted to avoid a false result.';
     suggestion = ocr
-      ? 'Check each OCR value against the scan, fix any misread characters, then Correct & approve to run the comparison.'
+      ? 'Check each OCR value against the scan, fix any misread characters, then use Correct and approve to run the comparison.'
       : 'Request a readable copy from the sender, or read the seven fields from the original and use Correct and approve.';
     for (const k of FIELD_KEYS) {
       editFields.push({
@@ -79,7 +79,7 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
     const ph = { ...(e.extracted?.si.placeholders ?? {}), ...(e.extracted?.bl.placeholders ?? {}) };
     const phList = Object.entries(ph).map(([k, v]) => `${fieldLabel(k)} = "${v}"`);
     summary = `The documents were readable, but required values are blank or placeholders${phList.length ? ` (${phList.join(', ')})` : ''}. The engine never treats a placeholder as a match.`;
-    suggestion = 'Enter the missing value(s) exactly as written in the source document, then Correct & approve to finalize the comparison.';
+    suggestion = 'Enter the missing value(s) exactly as written in the source document, then use Correct and approve to complete the comparison.';
   } else {
     // wrong_doc_type
     for (const a of e.attachments) {
@@ -95,8 +95,8 @@ export function buildReviewCase(e: ProcessedEmail): ReviewCase {
           : [a.name, `Content identifies as: ${actual.replace('_', ' ').toLowerCase()}`, `Expected: ${a.kind === 'SI' ? 'Shipping Instruction' : 'draft Bill of Lading'}`],
       });
     }
-    summary = 'An attachment is not the document its filename claims (e.g. a commercial invoice, packing list or certificate of origin). Comparing it would produce a false result.';
-    suggestion = 'Ask the sender for the correct document. If you have it, Correct & approve with the values read from it.';
+    summary = 'An attachment is not the document its file name claims, for example a commercial invoice, packing list or certificate of origin. Comparing it would produce a false result.';
+    suggestion = 'Ask the sender for the correct document, then check it as a new item. Mark this case as reviewed once the request is sent.';
   }
 
   return {

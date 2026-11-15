@@ -1,8 +1,8 @@
-# CargoTrust — Shipping Document Verification
+# CargoTrust AI: shipping document verification
 
 **From email inbox to discrepancy report.** CargoTrust checks every **Shipping Instruction (SI)**
 against its draft **Bill of Lading (BL)** before the BL is issued. It reads customer emails and
-documents in whatever format they arrive — text, PDF, Word, Excel, scanned PDFs and phone photos —
+documents in whatever format they arrive (text, PDF, Word, Excel, scanned PDFs and phone photos),
 compares the seven fields that cause costly BL amendments, and drafts the reply to the customer.
 When it cannot decide reliably, it sends the case to a person with the reason and the evidence
 instead of guessing.
@@ -25,7 +25,7 @@ the decisions that need judgement.
 | **Read** | The format is detected from the bytes. PDFs are rebuilt from page geometry, Word tables keep their line breaks, Excel keeps label/value rows. **Scans and photos are read by OCR and, when enabled, by Claude's vision model** (see below). |
 | **Extract** | "Port of Loading", "Load Port", "POL" and "PORT OF LOADING (装货港)" land in one field. Placeholders ("TBA", "____MT") are never treated as values. Totals fall back to the container table. |
 | **Compare** | SI is the reference. Company names must match exactly apart from formatting (an extra word is a different company). Ports must agree on city and UN/LOCODE. Numbers must match exactly after unit conversion (21.577 MT = 21,577 kg). |
-| **Decide** | `OK` · `MISMATCH` with the exact fields (*SI: 6 / BL: 5*) · `NEEDS_REVIEW` with a reason: missing attachment, unreadable or scanned document, wrong document type, or missing value. |
+| **Decide** | **Match** (`OK`) · **Discrepancy** (`MISMATCH`) with the exact fields (*SI: 6 / BL: 5*) · **Needs review** (`NEEDS_REVIEW`) with a reason: missing attachment, unreadable or scanned document, wrong document type, or missing value. |
 | **Act** | Every item gets a step-by-step **decision trace**, the source line behind every value, and a **drafted reply** (amendment request, confirmation, or request for the missing document) that opens in the operator's mail app. |
 | **Review** | Escalations go to a review queue where an operator approves, rejects or corrects values; corrections re-run the comparison. |
 
@@ -119,10 +119,23 @@ npm run score        # benchmark grader (needs the organizers' kit in .local/, g
 | **New check** | Upload an SI + draft BL (file, photo or pasted text), or import `.eml` files. |
 | **Inbox** | Every email and upload with its result; filters, search, CSV export. |
 | **Item detail** | Decision trace, SI ↔ BL comparison with source lines, the original file, what was read (AI transcription and OCR side by side), drafted reply, history. |
-| **Reviews** | The human-review queue: evidence, per-field corrections, approve / correct / reject. |
+| **Review queue** | Cases the engine could not decide: evidence, per-field corrections, then correct, mark as reviewed or reject. |
 | **Activity log** | Who did what, and when. |
 | **Quality** | Self-test suite, mutation benchmark, benchmark record. |
 | **Settings** | Your password; team and roles; AI reading; organisation name and sample data. |
+
+## Interface design
+
+* **Palette:** deep maritime navy for dark surfaces, Atlantic blue for actions, maritime teal as the
+  accent, amber for anything waiting on a person, and green and red reserved for check results.
+* **Type:** IBM Plex Sans for the interface, IBM Plex Sans Condensed for marketing headlines, IBM Plex
+  Mono for document data. Fonts are self-hosted, so the console works without internet access.
+* **Tokens:** colours, radii, shadows and motion live in `tailwind.config.ts`; shared component
+  classes (buttons, cards, tables, page headings) in `src/app/globals.css`.
+* **Motion:** short and functional (menus, tabs, the landing-page check demo). Everything respects
+  the reduced-motion setting.
+* **Illustration:** the container-terminal scene is an original SVG; no stock imagery and no real
+  port or company is depicted. Demonstrations on the landing page are labelled as illustrations.
 
 ## Architecture
 
@@ -184,4 +197,4 @@ src/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

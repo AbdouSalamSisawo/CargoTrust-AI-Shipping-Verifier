@@ -44,10 +44,10 @@ export default function LandingPage() {
 
       {/* ============================== hero */}
       <section className="relative bg-navy-950 text-white overflow-hidden" aria-labelledby="hero-h">
-        <div className="absolute inset-x-0 bottom-0 h-[62%] sm:h-[70%] pointer-events-none opacity-90">
+        <div className="absolute inset-x-0 bottom-0 h-[220px] sm:h-[290px] lg:h-[330px] pointer-events-none">
           <PortScene className="w-full h-full"/>
         </div>
-        <div className="relative max-w-6xl mx-auto px-4 lg:px-6 pt-28 pb-24 lg:pt-36 lg:pb-32 grid lg:grid-cols-[1.05fr_1fr] gap-12 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 lg:px-6 pt-28 pb-[230px] sm:pb-[300px] lg:pt-36 lg:pb-[320px] grid lg:grid-cols-[1.05fr_1fr] gap-12 items-center">
           <div>
             <div className="eyebrow text-aqua-300">Shipping document verification</div>
             <h1 id="hero-h" className="mt-4 text-white font-display text-[40px] sm:text-[52px] leading-[1.04] font-semibold tracking-tight">
