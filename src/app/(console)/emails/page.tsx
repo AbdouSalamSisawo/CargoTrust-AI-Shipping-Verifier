@@ -6,6 +6,7 @@ import { CATEGORIES, CATEGORY_ORDER, type Category, type Status } from '@/data/t
 import { Icon } from '@/components/icons';
 import { CategoryBadge, StatusBadge, ReasonBadge, ConfBar, TextField, Skeleton, EmptyState, M } from '@/components/ui';
 import { cx } from '@/lib/utils';
+import { useSession, can } from '@/components/shell';
 
 interface Row {
   id: string;
@@ -19,7 +20,16 @@ interface Row {
   awaitingDocuments?: boolean;
   hasAttachments: boolean;
   summary: string;
+  source: 'sample' | 'upload' | 'email';
+  receivedAt: string | null;
+  aiRead: boolean;
 }
+
+const SOURCE_FILTERS: { key: string; label: string }[] = [
+  { key: 'ALL', label: 'All sources' },
+  { key: 'live', label: 'Uploads & email' },
+  { key: 'sample', label: 'Sample inbox' },
+];
 
 const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: 'ALL', label: 'All statuses' },
@@ -36,33 +46,39 @@ export default function EmailsPage() {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<'ALL' | Category>('ALL');
   const [status, setStatus] = useState('ALL');
+  const [source, setSource] = useState('ALL');
+  const { user } = useSession();
 
   const load = useCallback(async () => {
     setRows(null);
-    const sp = new URLSearchParams({ q, category: cat, status, page: String(page), pageSize: '10' });
+    const sp = new URLSearchParams({ q, category: cat, status, source, page: String(page), pageSize: '10' });
     const r = await fetch('/api/emails?' + sp.toString());
     const d = await r.json();
     setRows(d.items);
     setTotal(d.total);
     setPages(d.pages);
-  }, [q, cat, status, page]);
+  }, [q, cat, status, source, page]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), 250);
     return () => clearTimeout(t);
   }, [load]);
 
-  const reset = () => { setQ(''); setCat('ALL'); setStatus('ALL'); setPage(1); };
-  const changed = q !== '' || cat !== 'ALL' || status !== 'ALL';
+  const reset = () => { setQ(''); setCat('ALL'); setStatus('ALL'); setSource('ALL'); setPage(1); };
+  const changed = q !== '' || cat !== 'ALL' || status !== 'ALL' || source !== 'ALL';
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Email Intelligence</h1>
-          <p className="text-sm text-slate-400 mt-1">Every inbox message, classified and verified by the engine.</p>
+          <h1 className="font-display text-[26px] font-bold text-navy-900 tracking-tight">Inbox</h1>
+          <p className="text-sm text-slate-400 mt-1">Every email and uploaded check, classified and verified by the engine.</p>
         </div>
-        <div className="text-[12.5px] font-semibold text-slate-400">{rows ? `${total} matching emails` : 'Loading…'}</div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[12.5px] font-semibold text-slate-400 mr-1">{rows ? `${total} matching` : 'Loading…'}</span>
+          <a href={`/api/export${source === 'live' ? '?source=live' : ''}`} className="btn-ghost btn-sm"><Icon name="download" size={14}/>Export CSV</a>
+          {can(user, 'operator') && <Link href="/new" className="btn-primary btn-sm"><Icon name="mailImport" size={14}/>Add emails / documents</Link>}
+        </div>
       </div>
 
       {/* filters */}
@@ -94,6 +110,9 @@ export default function EmailsPage() {
             </button>
           ))}
         </div>
+        <select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-bold text-slate-500">
+          {SOURCE_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        </select>
         <div className="flex gap-1.5">
           {STATUS_FILTERS.map((s) => (
             <button
@@ -147,6 +166,9 @@ export default function EmailsPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-[11px] text-slate-400 shrink-0">{e.id}</span>
                               {e.hasAttachments && <Icon name="paperclip" size={12} className="text-slate-300 shrink-0"/>}
+                              {e.source !== 'sample' && <span className="text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 bg-brand-50 text-brand-600">{e.source === 'upload' ? 'upload' : 'email'}</span>}
+                              {e.aiRead && <span className="text-[9.5px] font-bold uppercase tracking-wider rounded px-1 py-0.5 bg-ai-50 text-ai-600">AI read</span>}
+                              {e.receivedAt && <span className="text-[10.5px] text-slate-300 tabular-nums">{new Date(e.receivedAt).toLocaleDateString()}</span>}
                             </div>
                             <div className="text-[13px] font-semibold text-ink-800 truncate group-hover:text-brand-600 transition-colors max-w-[420px]">{e.subject}</div>
                             <div className="text-[11.5px] text-slate-400 truncate max-w-[420px]">{e.from}</div>

@@ -53,9 +53,9 @@ export function DecisionTrace({ email, steps: given }: { email?: ProcessedEmail;
 }
 
 /** The email an operator would send next — values come only from the comparison. */
-export function ReplyDraft({ email, draft }: { email?: ProcessedEmail; draft?: DraftReply | null }) {
+export function ReplyDraft({ email, draft, organisation }: { email?: ProcessedEmail; draft?: DraftReply | null; organisation?: string }) {
   const toast = useToast();
-  const d = draft !== undefined ? draft : email ? draftReply(email) : null;
+  const d = draft !== undefined ? draft : email ? draftReply(email, organisation) : null;
   if (!d) return null;
   const copy = async () => {
     try {
@@ -72,7 +72,10 @@ export function ReplyDraft({ email, draft }: { email?: ProcessedEmail; draft?: D
           <h3 className="font-bold text-[14px] text-navy-900 flex items-center gap-2"><Icon name="send" size={15} className="text-brand-500"/>Draft reply · {d.purpose}</h3>
           <p className="text-[11.5px] text-slate-400 mt-0.5">To {d.to} — generated from the comparison, never invented. Review before sending.</p>
         </div>
-        <button onClick={copy} className="btn-ghost btn-sm shrink-0"><Icon name="files" size={13}/>Copy</button>
+        <div className="flex gap-1.5 shrink-0">
+          <button onClick={copy} className="btn-ghost btn-sm"><Icon name="files" size={13}/>Copy</button>
+          <a href={`mailto:${/@/.test(d.to) ? encodeURIComponent(d.to) : ''}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`} className="btn-primary btn-sm"><Icon name="send" size={13}/>Open in mail app</a>
+        </div>
       </div>
       <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
         <div className="text-[11.5px] font-bold text-slate-600 mb-2">Subject: {d.subject}</div>

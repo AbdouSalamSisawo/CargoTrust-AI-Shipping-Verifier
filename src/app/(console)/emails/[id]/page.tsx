@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import type { ProcessedEmail, ReviewCase, FieldRow } from '@/lib/types';
+import { useParams, useRouter } from 'next/navigation';
+import type { ProcessedEmail, ReviewCase, FieldRow, AuditEvent } from '@/lib/types';
+import { useSession, can } from '@/components/shell';
 import { CATEGORIES, CATEGORY_ORDER } from '@/data/taxonomy';
 import { Icon } from '@/components/icons';
 import { CategoryBadge, StatusBadge, ReasonBadge, ConfBar, Skeleton, useToast, M } from '@/components/ui';
@@ -24,6 +25,8 @@ function MatchChip({ m }: { m: boolean | null }) {
 function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachments'][number]; emailId: string; rows: FieldRow[] }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState<string | null>(null);
+  const [aiText, setAiText] = useState<string | null>(null);
+  const [view, setView] = useState<'ai' | 'ocr'>('ai');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -40,7 +43,10 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
         const r = await fetch(`/api/emails/${emailId}/source?att=${encodeURIComponent(att.path)}`);
         const d = await r.json();
         if (!r.ok || d.error) setErr(d.error ?? 'Could not load source');
-        else setText(d.text ?? `[${d.ext.toUpperCase()} — no text layer (image-only scan / binary)]`);
+        else {
+          setText(d.text ?? `[${d.ext.toUpperCase()} — no text could be read]`);
+          setAiText(d.aiText ?? null);
+        }
       } catch {
         setErr('Network error');
       } finally {
@@ -63,8 +69,17 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
             {' · '}
             {!att.readable ? (
               <span className="text-red-500 font-semibold">{att.error ?? 'unreadable'}</span>
-            ) : att.method === 'pdf-ocr' ? (
-              <span className="text-amber-600 font-semibold">scan → OCR {att.ocrConfidence}%</span>
+            ) : att.ai && !att.ai.error ? (
+              <span className="text-ai-600 font-semibold">
+                scan → AI read ({att.ai.model})
+                {att.ai.agreement && (() => {
+                  const v = Object.values(att.ai.agreement).filter((x) => x != null);
+                  return v.length ? ` · OCR agrees ${v.filter(Boolean).length}/${v.length}` : '';
+                })()}
+                {att.ai.unclear.length > 0 && <span className="text-amber-600"> · unclear: {att.ai.unclear.join(', ')}</span>}
+              </span>
+            ) : att.method === 'pdf-ocr' || att.method === 'image-ocr' ? (
+              <span className="text-amber-600 font-semibold">{att.method === 'image-ocr' ? 'photo' : 'scan'} → OCR {att.ocrConfidence}%{att.ai?.error ? ` · AI read failed: ${att.ai.error}` : ''}</span>
             ) : (
               <span className="text-emerald-600 font-semibold">{METHOD_LABEL[att.method ?? 'text'] ?? 'text extracted'}</span>
             )}
@@ -74,8 +89,11 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
           <span className={cx('text-[9.5px] font-bold uppercase tracking-wider rounded-md px-1.5 py-0.5',
             att.kind === 'SI' ? 'bg-brand-50 text-brand-500' : 'bg-aqua-50 text-aqua-600')}>{att.kind}</span>
         )}
+        <a href={`/api/emails/${encodeURIComponent(emailId)}/source?att=${encodeURIComponent(att.path)}&raw=1`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-400 hover:text-brand-600 transition-colors inline-flex items-center gap-1 shrink-0" title="Open the original file">
+          <Icon name="externalLink" size={12}/>Original
+        </a>
         <button onClick={toggle} className="text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors inline-flex items-center gap-1 shrink-0">
-          <Icon name="eye" size={12}/>{open ? 'Hide source' : 'View source'}
+          <Icon name="eye" size={12}/>{open ? 'Hide text' : 'What was read'}
         </button>
       </div>
       {open && (
@@ -85,8 +103,18 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
           ) : err ? (
             <div className="p-4 text-[11.5px] font-mono text-red-300">{err}</div>
           ) : (
+            <>
+            {aiText && (
+              <div className="sticky top-0 flex gap-1 p-2 bg-navy-950/95 border-b border-white/10">
+                {(['ai', 'ocr'] as const).map((k) => (
+                  <button key={k} onClick={() => setView(k)} className={cx('px-2.5 py-1 rounded-md text-[10.5px] font-bold', view === k ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-slate-200')}>
+                    {k === 'ai' ? 'AI transcription (used)' : 'OCR text (cross-check)'}
+                  </button>
+                ))}
+              </div>
+            )}
             <pre className="p-4 text-[10.5px] leading-relaxed font-mono whitespace-pre-wrap">
-              {(text ?? '').split(/\r?\n/).map((line, i) => {
+              {((aiText && view === 'ai' ? aiText : text) ?? '').split(/\r?\n/).map((line, i) => {
                 const isEv = evidenceLines.some((l) => norm(l) === norm(line));
                 const isDef = defectLines.some((l) => norm(l) === norm(line));
                 return (
@@ -102,6 +130,7 @@ function AttachmentRow({ att, emailId, rows }: { att: ProcessedEmail['attachment
                 );
               })}
             </pre>
+            </>
           )}
         </div>
       )}
@@ -140,6 +169,10 @@ export default function EmailDetailPage() {
   const toast = useToast();
   const [email, setEmail] = useState<ProcessedEmail | null>(null);
   const [kase, setCase] = useState<ReviewCase | null>(null);
+  const [history, setHistory] = useState<AuditEvent[]>([]);
+  const [org, setOrg] = useState<string | undefined>();
+  const { user } = useSession();
+  const router = useRouter();
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -149,6 +182,8 @@ export default function EmailDetailPage() {
     const d = await r.json();
     setEmail(d.email);
     setCase(d.reviewCase);
+    setHistory(d.history ?? []);
+    setOrg(d.organisation);
   }, [params.id]);
 
   useEffect(() => { void load(); }, [load]);
@@ -159,14 +194,23 @@ export default function EmailDetailPage() {
       const r = await fetch(`/api/emails/${params.id}`, { method: 'POST' });
       const d = await r.json();
       if (d.ok) {
-        toast('Reprocessed', d.summary ?? `Result: ${d.status}`, d.status === 'OK' ? 'success' : d.status === 'MISMATCH' ? 'danger' : 'warn');
+        toast('Check re-run', d.summary ?? `Result: ${d.status}`, d.status === 'OK' ? 'success' : d.status === 'MISMATCH' ? 'danger' : 'warn');
         await load();
       } else {
-        toast('Cannot reprocess', d.error ?? 'Unknown error', 'warn');
+        toast('Cannot re-run', d.error ?? 'Unknown error', 'warn');
       }
     } finally {
       setBusy(false);
     }
+  };
+
+  const remove = async () => {
+    if (!window.confirm('Delete this item and its documents? This cannot be undone.')) return;
+    const d = await fetch(`/api/emails/${params.id}`, { method: 'DELETE' }).then((r) => r.json());
+    if (d.ok) {
+      toast('Deleted', 'The item and its files were removed.', 'success');
+      router.push('/emails');
+    } else toast('Not deleted', d.error ?? 'Unknown error', 'danger');
   };
 
   if (missing) {
@@ -196,7 +240,7 @@ export default function EmailDetailPage() {
     <div className="space-y-5">
       <div>
         <Link href="/emails" className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-slate-400 hover:text-brand-500 transition-colors">
-          <Icon name="arrowLeft" size={14}/>Email inbox
+          <Icon name="arrowLeft" size={14}/>Inbox
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-4 mt-2">
           <div className="min-w-0">
@@ -204,6 +248,13 @@ export default function EmailDetailPage() {
               {email.id}
               <span>·</span>
               <span className="truncate max-w-[420px]">{email.from}</span>
+              {email.receivedAt && <><span>·</span><span>{new Date(email.receivedAt).toLocaleString()}</span></>}
+              {email.source && email.source !== 'sample' && (
+                <span className="ml-1 rounded-md bg-brand-50 text-brand-600 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider">
+                  {email.source === 'upload' ? 'Uploaded' : 'Imported email'}{email.createdBy ? ` by ${email.createdBy}` : ''}
+                </span>
+              )}
+              {email.aiRead && <span className="rounded-md bg-violet-50 text-violet-600 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider">AI-read scan</span>}
             </div>
             <h1 className="font-display text-[21px] font-bold text-navy-900 tracking-tight mt-1 max-w-3xl">{email.subject}</h1>
             <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -214,10 +265,13 @@ export default function EmailDetailPage() {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            {email.status === 'NEEDS_REVIEW' && (
-              <button onClick={reprocess} disabled={busy} className="btn-ghost btn-sm">
-                <Icon name="refresh" size={14} className={busy ? 'animate-spin' : ''}/>Reprocess
+            {can(user, 'operator') && email.attachments.length > 0 && (
+              <button onClick={reprocess} disabled={busy} className="btn-ghost btn-sm" title="Read the documents again and re-run every check">
+                <Icon name="refresh" size={14} className={busy ? 'animate-spin' : ''}/>{busy ? 'Running…' : 'Re-run check'}
               </button>
+            )}
+            {can(user, 'operator') && email.source && email.source !== 'sample' && (
+              <button onClick={remove} className="btn-danger-o btn-sm"><Icon name="trash" size={14}/>Delete</button>
             )}
             {kase && kase.status === 'open' && (
               <Link href="/reviews" className="btn-primary btn-sm"><Icon name="clipboardCheck" size={14}/>Open in review queue</Link>
@@ -246,7 +300,7 @@ export default function EmailDetailPage() {
           ))}
           {email.reviewed && (
             <div className="text-[11.5px] text-slate-500 mt-1">
-              Reviewer action: <b className="capitalize">{email.reviewed.action}</b>{email.reviewed.note ? ` — “${email.reviewed.note}”` : ''}
+              Reviewer action: <b className="capitalize">{email.reviewed.action}</b>{email.reviewed.by ? ` by ${email.reviewed.by}` : ''}{email.reviewed.at ? ` · ${new Date(email.reviewed.at).toLocaleString()}` : ''}{email.reviewed.note ? ` — “${email.reviewed.note}”` : ''}
             </div>
           )}
         </div>
@@ -293,6 +347,20 @@ export default function EmailDetailPage() {
               })}
             </div>
           </div>
+          {history.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-bold text-[14px] text-navy-900 mb-3 flex items-center gap-2"><Icon name="history" size={15} className="text-slate-400"/>History</h3>
+              <ol className="space-y-2.5">
+                {history.map((h) => (
+                  <li key={h.id} className="text-[12px] leading-snug">
+                    <div className="text-slate-600"><b className="text-ink-800">{h.userName}</b> · {h.action.replace(/^[a-z]+\./, '').replace(/_/g, ' ')}</div>
+                    {h.detail && <div className="text-slate-400 truncate" title={h.detail}>{h.detail}</div>}
+                    <div className="text-[10.5px] text-slate-300 tabular-nums">{new Date(h.at).toLocaleString()}</div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
 
         {/* right: comparison */}
@@ -306,7 +374,7 @@ export default function EmailDetailPage() {
                     <Icon name="gitCompare" size={15} className="text-brand-500"/>SI ↔ BL comparison
                     {email.status === 'NEEDS_REVIEW' && (
                       <span className="text-[10px] font-bold uppercase tracking-wider rounded-md px-1.5 py-0.5 bg-amber-100 text-amber-700">
-                        {email.reviewReason === 'unreadable' ? 'OCR pre-check · not final' : 'partial · not final'}
+                        {email.reviewReason === 'unreadable' ? (email.aiRead ? 'AI pre-check · confirm against the scan' : 'OCR pre-check · not final') : 'partial · not final'}
                       </span>
                     )}
                   </h3>
@@ -386,7 +454,7 @@ export default function EmailDetailPage() {
             </div>
           )}
 
-          <ReplyDraft email={email}/>
+          <ReplyDraft email={email} organisation={org}/>
 
           {/* review case */}
           {kase && (

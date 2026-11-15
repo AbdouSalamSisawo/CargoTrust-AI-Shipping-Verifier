@@ -13,7 +13,7 @@ const greet = (from: string) => {
   return local && /^[a-z]+$/i.test(local) && local.length > 2 ? `Dear ${local[0].toUpperCase()}${local.slice(1).toLowerCase()},` : 'Dear Team,';
 };
 
-export function draftReply(e: ProcessedEmail): DraftReply | null {
+export function draftReply(e: ProcessedEmail, organisation?: string): DraftReply | null {
   if (e.category !== 'BL_COMPARISON' || e.awaitingDocuments) return null;
   const subject = `RE: ${e.subject.replace(/^(re[:_]\s*)+/i, '')}`;
   const sign = '\n\nBest regards,\nShipping Documentation\n(checked with CargoTrust AI)';
