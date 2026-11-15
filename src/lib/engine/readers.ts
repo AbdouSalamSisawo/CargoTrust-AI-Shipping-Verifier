@@ -123,7 +123,7 @@ export function layoutPdfPage(items: Item[]): string {
     let end = -Infinity;
     for (const it of line) {
       const gap = it.x - end;
-      if (cells.length && gap < 12 && !(atAnchor(it.x) && gap > -1)) cells[cells.length - 1].s += (gap > 1.5 ? ' ' : '') + it.s;
+      if (cells.length && gap < 12 && !atAnchor(it.x)) cells[cells.length - 1].s += (gap > 1.5 ? ' ' : '') + it.s;
       else cells.push({ x: it.x, s: it.s });
       end = it.x + it.w;
     }

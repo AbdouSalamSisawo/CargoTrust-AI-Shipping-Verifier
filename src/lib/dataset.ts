@@ -14,7 +14,7 @@ import { readDocument, type ReadResult } from './engine/readers';
  */
 const DATASET_DIR = path.join(process.cwd(), 'dataset');
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
-const READER_VERSION = 'r3';
+const READER_VERSION = 'r4';
 
 let inboxCache: EmailRecord[] | null = null;
 const readCache = new Map<string, ReadResult & { size: number }>();
