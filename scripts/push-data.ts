@@ -2,7 +2,7 @@
  * One-time move of a local workspace (data/db.json, data/uploads, data/cache)
  * into Postgres and/or a private Vercel Blob store, e.g. before the first
  * deploy to Vercel. Reads DATABASE_URL and BLOB_READ_WRITE_TOKEN from the
- * environment or .env.local.
+ * environment or .env.vercel (from `vercel env pull .env.vercel`).
  *
  *   npm run data:push                 database and files
  *   npm run data:push -- --overwrite  replace a workspace already in the database
@@ -33,7 +33,7 @@ async function walk(dir: string): Promise<string[]> {
 async function main() {
   const overwrite = process.argv.includes('--overwrite');
   if (!databaseUrl() && filesBackend() !== 'blob') {
-    console.error('Set DATABASE_URL and/or BLOB_READ_WRITE_TOKEN (in the environment or .env.local) first.');
+    console.error('Set DATABASE_URL and/or BLOB_READ_WRITE_TOKEN (in the environment or .env.vercel) first.');
     process.exit(1);
   }
 

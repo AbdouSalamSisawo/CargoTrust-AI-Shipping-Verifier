@@ -107,9 +107,16 @@ without them it uses `data/` as above.
    `AUTH_SECRET` (32+ random characters) and, for AI reading, `ANTHROPIC_API_KEY`.
 5. Deploy. The first request creates the workspace, including the sample inbox unless `SAMPLE_DATA=0`.
 
-To start the hosted copy with an existing local workspace instead, put `DATABASE_URL` and
-`BLOB_READ_WRITE_TOKEN` in `.env.local` (from `vercel env pull`) and run `npm run data:push` once before
-the first visit. It refuses to overwrite a database that already holds a workspace.
+To start the hosted copy with an existing local workspace instead, run
+`vercel env pull .env.vercel` and then `npm run data:push` once before the first visit. It copies
+`data/` into Postgres and Blob (including cached OCR, so the sample inbox is not read again) and refuses
+to overwrite a database that already holds a workspace. Keep the production credentials in
+`.env.vercel`, not `.env.local`: Next.js loads `.env.local` automatically, which would point a local
+`npm start` at the live database.
+
+Notes from the first deployment: a project created from the CLI needs `"framework": "nextjs"` (set in
+`vercel.json`, together with the `fra1` region); `.vercelignore` keeps `data/` and local files out of
+CLI uploads; on the Hobby plan a function may run at most 300 seconds.
 
 `/api/health` reports which storage is in use (`"storage": "postgres", "files": "blob"`). The same two
 variables work on a company server too: point `DATABASE_URL` at any Postgres 13+ to run several

@@ -11,7 +11,7 @@
     "score": "npm run engine && bash scripts/score.sh",
     "robustness": "tsx scripts/robustness.ts",
     "check:ai": "tsx scripts/ai-path-check.ts",
-    "data:push": "tsx --env-file-if-exists=.env.local scripts/push-data.ts"
+    "data:push": "tsx --env-file-if-exists=.env.vercel scripts/push-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
