@@ -27,3 +27,7 @@ Thumbs.db
 
 # source archives (contain the organizers' answer key — never commit)
 *.zip
+
+.vercel
+.env*
+!.env.example
