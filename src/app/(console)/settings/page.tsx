@@ -62,6 +62,9 @@ function AccountSection() {
           You are using a temporary password. Choose your own now.
         </div>
       )}
+      {user.demo ? (
+        <p className="text-[13px] text-ink-500">This is the shared read-only demo account, so its password cannot be changed.</p>
+      ) : (
       <form onSubmit={change} className="grid sm:grid-cols-3 gap-3">
         <TextField type="password" autoComplete="current-password" placeholder="Current password" value={f.current} onChange={(e) => setF({ ...f, current: e.target.value })} icon={<Icon name="lock" size={15}/>}/>
         <TextField type="password" autoComplete="new-password" placeholder="New password" value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} icon={<Icon name="key" size={15}/>}/>
@@ -71,6 +74,7 @@ function AccountSection() {
           <span className="text-[11.5px] text-ink-400">At least 10 characters, with letters and numbers.</span>
         </div>
       </form>
+      )}
     </Section>
   );
 }

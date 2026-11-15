@@ -6,7 +6,7 @@ import type { NextRequest } from 'next/server';
  * The cookie's signature, expiry and the user's role are verified on the
  * server by requireUser() in every route and by the console layout.
  */
-const PUBLIC_API = ['/api/auth/login', '/api/health'];
+const PUBLIC_API = ['/api/auth/login', '/api/auth/demo', '/api/health'];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

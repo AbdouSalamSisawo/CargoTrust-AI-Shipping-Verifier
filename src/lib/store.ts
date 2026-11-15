@@ -22,7 +22,7 @@ import { databaseUrl, pgLoad, pgMutate, pgRevision, type PgState } from './pgsto
 import { processEmail, detectAttachmentKinds } from './engine/pipeline';
 import { buildReviewCase } from './engine/review';
 import { DEFAULT_AI_MODEL, type AiConfig } from './engine/vision';
-import { hashPassword, generatePassword } from './passwords';
+import { hashPassword, verifyPassword, generatePassword } from './passwords';
 import type { ReadResult } from './engine/readers';
 import type { AuditEvent, DBShape, EmailRecord, ProcessedEmail, ReviewCase, Settings, User } from './types';
 
@@ -174,6 +174,39 @@ function seedAdmin(db: DBShape) {
   }
 }
 
+/**
+ * Shared read-only demo account for public demos, configured by DEMO_EMAIL and
+ * DEMO_PASSWORD. Created as a viewer on first boot and kept in that state on
+ * every start (role, active, password), so a demo cannot be locked or promoted.
+ */
+function syncDemoAccount(db: DBShape) {
+  const email = (process.env.DEMO_EMAIL || '').trim().toLowerCase();
+  const password = process.env.DEMO_PASSWORD || '';
+  if (!email || password.length < 10) return;
+  let u = Object.values(db.users).find((x) => x.email === email);
+  if (!u) {
+    const id = crypto.randomUUID();
+    u = db.users[id] = {
+      id,
+      name: process.env.DEMO_NAME || 'Demo visitor',
+      email,
+      role: 'viewer',
+      passwordHash: hashPassword(password),
+      active: true,
+      demo: true,
+      createdAt: new Date().toISOString(),
+    };
+    audit(db, null, 'user.created', email, 'Read-only demo account created from DEMO_EMAIL');
+    return;
+  }
+  if (u.role === 'admin') return; // never downgrade an administrator who happens to use this address
+  if (u.role !== 'viewer') u.role = 'viewer';
+  if (!u.active) u.active = true;
+  if (!u.demo) u.demo = true;
+  if (u.mustChangePassword) u.mustChangePassword = false;
+  if (!verifyPassword(password, u.passwordHash)) u.passwordHash = hashPassword(password);
+}
+
 /** Bring a db.json written by an older version up to the current shape. */
 export function migrate(raw: Partial<DBShape>): DBShape {
   const db: DBShape = {
@@ -193,6 +226,7 @@ export function migrate(raw: Partial<DBShape>): DBShape {
   // shared session key for multi-instance hosting when AUTH_SECRET is not configured
   if (storageBackend() === 'postgres' && !db.settings.authSecret) db.settings.authSecret = crypto.randomBytes(32).toString('hex');
   seedAdmin(db);
+  syncDemoAccount(db);
   return db;
 }
 

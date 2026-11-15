@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** Change your own password. */
 export const POST = guarded('viewer', async (user, req: NextRequest) => {
+  if (user.demo) return NextResponse.json({ ok: false, error: 'The demo account is shared, so its password cannot be changed.' }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { current?: string; next?: string };
   if (!body.current || !verifyPassword(body.current, user.passwordHash)) {
     return NextResponse.json({ ok: false, error: 'Your current password is incorrect.' }, { status: 400 });

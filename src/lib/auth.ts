@@ -114,7 +114,9 @@ export async function currentUser(): Promise<User | null> {
   if (!uid) return null;
   const db = await getDB();
   const u = db.users[uid];
-  return u && u.active ? u : null;
+  if (!u || !u.active) return null;
+  // the shared demo account is read-only whatever role it has been given
+  return u.demo && u.role !== 'viewer' ? { ...u, role: 'viewer' } : u;
 }
 
 export class AuthError extends Error {

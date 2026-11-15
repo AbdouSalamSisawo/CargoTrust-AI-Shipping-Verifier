@@ -186,11 +186,12 @@ export async function pgLoad(
     const got = await loadAll(c);
     if (!got) return persist(c, await create(), null, 0);
     const prev = { snap: snapshot(got.raw as DBShape), meta: '' };
+    const metaBefore = metaJson(got.raw as DBShape);
     const db = upgrade(got.raw);
-    if (got.raw.version !== currentVersion || metaJson(db) !== metaJson(got.raw as DBShape) || Object.keys(db.users).length !== Object.keys(got.raw.users ?? {}).length) {
-      return persist(c, db, prev, got.rev);
-    }
-    return { db, rev: got.rev, snap: snapshot(db), meta: metaJson(db) };
+    const snap = snapshot(db);
+    const changed = snap.size !== prev.snap.size || [...snap].some(([k, v]) => prev.snap.get(k) !== v);
+    if (got.raw.version !== currentVersion || metaJson(db) !== metaBefore || changed) return persist(c, db, prev, got.rev);
+    return { db, rev: got.rev, snap, meta: metaJson(db) };
   });
 }
 

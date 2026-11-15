@@ -24,6 +24,8 @@ export interface User {
   passwordHash: string;
   active: boolean;
   mustChangePassword?: boolean;
+  /** Shared read-only demo account (DEMO_EMAIL / DEMO_PASSWORD): viewer role, password cannot be changed. */
+  demo?: boolean;
   createdAt: string;
   lastLoginAt?: string;
 }

@@ -22,7 +22,9 @@
 </p>
 
 <p align="center">
-  <a href="https://cargotrust-ai.vercel.app"><b>Live demo</b></a> ·
+  <a href="https://cargotrust-ai.vercel.app/login"><b>Live demo</b></a> (read-only: <b>Explore the read-only demo</b> on the sign-in page, or <code>demo@cargotrust.local</code> / <code>cargotrust-demo-2026</code>)
+</p>
+<p align="center">
   <a href="#two-deployments">Deployments</a> ·
   <a href="#proven-not-claimed">Results</a> ·
   <a href="#screens">Screens</a> ·
@@ -42,7 +44,7 @@ the reason and the evidence instead of guessing.
 | --- | --- |
 | **Verification engine** | Complete. Scores 1.0000 on the Averis × Monash 2026 benchmark and passes all 883 mutation tests (see [results](#proven-not-claimed)). |
 | **Console** | Complete for a documentation desk: new checks, `.eml` import, inbox, decision trace, review queue, CSV export, accounts with three roles, activity log, settings. |
-| **Demo deployment** | **Live** at <https://cargotrust-ai.vercel.app>: Vercel, Neon Postgres and a private Blob store, all in Frankfurt. Sign-in, text, Word, Excel and scanned-PDF checks verified on the live site. |
+| **Demo deployment** | **Live** at <https://cargotrust-ai.vercel.app>: Vercel, Neon Postgres and a private Blob store, all in Frankfurt. Sign-in, text, Word, Excel and scanned-PDF checks verified on the live site. Visitors get a read-only demo account. |
 | **On-premise deployment** | Docker image and Compose file for an organisation's own server. The same code runs and is tested on Node locally; the Docker image itself has not yet been built and verified on a Docker host. |
 | **AI reading** | Built and tested offline (`npm run check:ai`). Switched on per organisation with its own Anthropic API key; off on the public demo. |
 | **Next** | Live mailbox connection (IMAP / Microsoft 365), single sign-on, a pilot on real documents. |
@@ -98,6 +100,10 @@ Without a key, everything works; scans are read by OCR and always go to a person
   resolve reviews), **viewer** (read-only).
 * New users get a temporary password and must change it on first sign-in. Repeated failed sign-ins
   are throttled.
+* **Read-only demo account** for public demos (`DEMO_EMAIL`, `DEMO_PASSWORD`): a viewer that can open
+  every result and its evidence but cannot upload, change, delete or see the activity log or team.
+  Its password cannot be changed from the console, it stays read-only even if an administrator gives
+  it another role, and removing `DEMO_EMAIL` switches the one-click demo off.
 * The **activity log** records every sign-in, check, review decision, export and setting change, and
   each item shows its own history.
 * Results export to CSV for reporting.
@@ -148,7 +154,8 @@ and its documents in a **private Blob store**.
 2. **Storage → Connect Database → Neon**. This sets `DATABASE_URL`.
 3. **Storage → Create → Blob**, access **Private**, connected to the project.
 4. **Settings → Environment Variables**: `AUTH_SECRET` (32+ random characters), `ADMIN_EMAIL` and
-   `ADMIN_PASSWORD`; `ANTHROPIC_API_KEY` for AI reading.
+   `ADMIN_PASSWORD`; `ANTHROPIC_API_KEY` for AI reading; `DEMO_EMAIL` and `DEMO_PASSWORD` for a public
+   read-only demo account.
 5. Deploy. The first request creates the workspace, including the sample inbox unless `SAMPLE_DATA=0`.
 
 To seed the demo with an existing local workspace instead, run `vercel env pull .env.vercel` and

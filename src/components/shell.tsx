@@ -266,6 +266,13 @@ export function AppShell({ children, user, organisation, aiActive }: { children:
               <ProfileMenu user={user} onSignOut={signOut}/>
             </header>
 
+            {user.demo && (
+              <div className="bg-brand-50 border-b border-brand-100 px-4 lg:px-6 py-2 text-[13px] text-brand-800 flex items-center gap-2" role="status">
+                <Icon name="eye" size={14} className="shrink-0"/>
+                <span className="flex-1">Read-only demo. Open any check to see its decision trace and evidence; uploading and changes are switched off.</span>
+                <button onClick={signOut} className="font-semibold underline underline-offset-2 whitespace-nowrap">Leave demo</button>
+              </div>
+            )}
             {user.mustChangePassword && route !== '/settings' && (
               <div className="bg-amber-50 border-b border-amber-200 px-4 lg:px-6 py-2 text-[13px] text-amber-900 flex items-center gap-2" role="alert">
                 <Icon name="alertTriangle" size={14} className="shrink-0"/>

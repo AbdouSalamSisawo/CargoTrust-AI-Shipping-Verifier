@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cx } from '@/lib/utils';
@@ -18,6 +18,31 @@ function LoginInner() {
   const [state, setState] = useState<'idle' | 'error' | 'loading' | 'success'>('idle');
   const [err, setErr] = useState('');
   const busy = state === 'loading' || state === 'success';
+  const [demo, setDemo] = useState<'none' | 'available' | 'loading'>('none');
+
+  useEffect(() => {
+    fetch('/api/auth/demo')
+      .then((r) => r.json())
+      .then((d) => d.available && setDemo('available'))
+      .catch(() => undefined);
+  }, []);
+
+  const enterDemo = async () => {
+    if (busy || demo === 'loading') return;
+    setDemo('loading');
+    try {
+      const r = await fetch('/api/auth/demo', { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error);
+      setState('success');
+      router.push('/dashboard');
+      router.refresh();
+    } catch (e) {
+      setDemo('available');
+      setState('error');
+      setErr(e instanceof Error && e.message ? e.message : 'The demo could not be opened. Try again.');
+    }
+  };
 
   // only same-site paths: never redirect to another origin after sign-in
   const go = () => {
@@ -123,6 +148,18 @@ function LoginInner() {
               {state === 'loading' ? <><Icon name="loader" size={16} className="animate-spin"/>Signing in</> : state === 'success' ? <><Icon name="check" size={16}/>Signed in</> : 'Sign in'}
             </button>
           </form>
+
+          {demo !== 'none' && (
+            <div className="mt-6">
+              <div className="flex items-center gap-3 text-[12px] text-ink-400" aria-hidden="true">
+                <span className="h-px flex-1 bg-line"/>or<span className="h-px flex-1 bg-line"/>
+              </div>
+              <button type="button" onClick={enterDemo} disabled={busy || demo === 'loading'} className="btn-ghost w-full py-2.5 text-[14px] mt-4">
+                {demo === 'loading' ? <><Icon name="loader" size={16} className="animate-spin"/>Opening the demo</> : <><Icon name="eye" size={16}/>Explore the read-only demo</>}
+              </button>
+              <p className="mt-2 text-[12px] text-ink-400 text-center">Every result and its evidence, with sample shipping emails. Nothing can be changed.</p>
+            </div>
+          )}
 
           <p className="mt-6 text-[13px] text-ink-400">Forgotten your password? An administrator can reset it under Settings, Team.</p>
         </div>
