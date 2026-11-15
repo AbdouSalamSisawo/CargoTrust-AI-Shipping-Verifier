@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
   });
   const { token, maxAge } = createSessionToken(user.id);
   const res = NextResponse.json({ ok: true, user: toPublic(fresh) });
-  res.cookies.set(sessionCookie(token, maxAge));
+  const https = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
+  res.cookies.set(sessionCookie(token, maxAge, https));
   return res;
 }

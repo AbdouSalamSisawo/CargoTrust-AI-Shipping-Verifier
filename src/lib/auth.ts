@@ -80,13 +80,18 @@ function readSessionToken(token: string | undefined): string | null {
   }
 }
 
-export function sessionCookie(token: string, maxAge: number) {
+/**
+ * `secure` follows the request: HTTPS (directly or behind a TLS proxy) gets a
+ * Secure cookie; plain HTTP on a LAN (e.g. http://192.168.1.20:3000 for a demo)
+ * still works, because browsers drop Secure cookies on non-local HTTP.
+ */
+export function sessionCookie(token: string, maxAge: number, secure: boolean) {
   return {
     name: SESSION_COOKIE,
     value: token,
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== '1',
+    secure,
     path: '/',
     maxAge,
   };

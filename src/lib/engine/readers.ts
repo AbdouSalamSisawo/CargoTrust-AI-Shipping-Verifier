@@ -13,6 +13,7 @@
  * viewer shows, so every highlighted evidence line is exactly what the engine
  * read.
  */
+import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
@@ -166,7 +167,12 @@ async function getOcrWorker(): Promise<TessWorker> {
   if (!workerPromise) {
     workerPromise = (async () => {
       const { createWorker } = await import('tesseract.js');
-      const w = await createWorker('eng', 1, { cachePath: path.join(os.tmpdir(), 'cargotrust-tessdata') });
+      // Use the language model shipped with the repo, so OCR works on servers without internet access.
+      const local = fs.existsSync(path.join(process.cwd(), 'eng.traineddata'));
+      const w = await createWorker('eng', 1, {
+        cachePath: path.join(os.tmpdir(), 'cargotrust-tessdata'),
+        ...(local ? { langPath: process.cwd(), gzip: false, cacheMethod: 'none' } : {}),
+      });
       return w as unknown as TessWorker;
     })();
   }

@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+data
+.local
+out
+*.zip
+*.log
+.env
+.env.*
+!.env.example
+.vscode

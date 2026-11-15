@@ -1,0 +1,23 @@
+services:
+  cargotrust:
+    build: .
+    image: cargotrust:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - cargotrust-data:/app/data
+    environment:
+      # Optional: turns on AI reading for scans and photos (can also be set in Settings).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # First administrator. Without ADMIN_PASSWORD a random one is generated and
+      # written to /app/data/admin-credentials.txt (see `docker compose logs`).
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@cargotrust.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Session signing key; generated and stored in the data volume when empty.
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      # Set to 0 to start with an empty inbox instead of the 520-email sample set.
+      SAMPLE_DATA: ${SAMPLE_DATA:-1}
+    restart: unless-stopped
+
+volumes:
+  cargotrust-data:
