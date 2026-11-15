@@ -24,3 +24,6 @@ Thumbs.db
 # local-only tooling (organizer scorer incl. answer key) and engine output
 /.local/
 /out/
+
+# source archives (contain the organizers' answer key — never commit)
+*.zip
