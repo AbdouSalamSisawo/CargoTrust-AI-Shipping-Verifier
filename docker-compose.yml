@@ -17,6 +17,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:-}
       # Set to 0 to start with an empty inbox instead of the 520-email sample set.
       SAMPLE_DATA: ${SAMPLE_DATA:-1}
+      # Optional: use the organisation's own Postgres instead of the data volume
+      # (needed only to run several CargoTrust instances behind a load balancer).
+      DATABASE_URL: ${DATABASE_URL:-}
     restart: unless-stopped
 
 volumes:
