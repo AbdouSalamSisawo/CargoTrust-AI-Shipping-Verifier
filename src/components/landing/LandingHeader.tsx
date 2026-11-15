@@ -25,13 +25,13 @@ export function LandingHeader() {
   return (
     <header className={cx('fixed top-0 inset-x-0 z-50 transition-colors duration-200', solid || open ? 'bg-navy-950/95 backdrop-blur border-b border-white/10' : 'bg-transparent')}>
       <div className="max-w-6xl mx-auto px-4 lg:px-6 h-16 flex items-center gap-8">
-        <Link href="/" aria-label="CargoTrust AI home"><Logo light/></Link>
-        <nav className="hidden lg:flex items-center gap-6" aria-label="Sections">
+        <Link href="/" aria-label="CargoTrust AI home" className="shrink-0"><Logo light/></Link>
+        <nav className="hidden lg:flex flex-1 items-center justify-center gap-7 pl-24" aria-label="Sections">
           {LINKS.map(([h, l]) => (
             <a key={h} href={h} className="text-[13.5px] text-slate-300 hover:text-white transition-colors">{l}</a>
           ))}
         </nav>
-        <div className="flex-1"/>
+        <div className="flex-1 lg:hidden"/>
         <Link href="/login" className="hidden sm:inline-flex btn btn-sm bg-white text-navy-900 hover:bg-slate-100">Sign in</Link>
         <button onClick={() => setOpen(!open)} className="lg:hidden text-white p-1.5 -mr-1.5" aria-expanded={open} aria-controls="landing-menu" aria-label={open ? 'Close menu' : 'Open menu'}>
           <Icon name={open ? 'x' : 'menu'} size={20}/>

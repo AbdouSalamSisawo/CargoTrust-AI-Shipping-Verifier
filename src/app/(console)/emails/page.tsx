@@ -34,16 +34,16 @@ const STATUS_FILTERS = [
 ];
 const SOURCE_FILTERS = [
   { key: 'ALL', label: 'All sources' },
-  { key: 'live', label: 'Uploads and imported email' },
-  { key: 'sample', label: 'Sample emails' },
+  { key: 'live', label: 'Uploads and email' },
+  { key: 'sample', label: 'Sample data' },
 ];
 const PAGE_SIZE = 15;
 
 function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <label className="flex items-center gap-2 text-[12.5px] text-ink-500">
-      <span className="sr-only sm:not-sr-only whitespace-nowrap">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-md border border-slate-300 bg-white pl-2.5 pr-7 py-1.5 text-[13px] text-ink-800">
+    <label className="shrink-0">
+      <span className="sr-only">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="h-9 rounded-md border border-slate-300 bg-white pl-2.5 pr-8 text-[13px] text-ink-800">
         {children}
       </select>
     </label>
@@ -109,29 +109,29 @@ export default function InboxPage() {
 
       <div className="card overflow-hidden">
         {/* filters */}
-        <div className="p-3 border-b border-line flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="p-3 border-b border-line flex flex-wrap xl:flex-nowrap items-center gap-2.5">
           <TextField
             compact
-            className="w-full lg:w-72"
+            className="h-9 flex-1 min-w-[220px] basis-full sm:basis-auto"
             icon={<Icon name="search" size={15}/>}
             placeholder="Search subject, sender or ID"
             aria-label="Search the inbox"
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}
           />
-          <div className="inline-flex rounded-md border border-slate-300 p-0.5 bg-slate-50 self-start" role="group" aria-label="Filter by result">
+          <div className="h-9 inline-flex items-center shrink-0 rounded-md border border-slate-300 p-0.5 bg-slate-50" role="group" aria-label="Filter by result">
             {STATUS_FILTERS.map((s) => (
               <button
                 key={s.key}
                 onClick={() => { setStatus(s.key); setPage(1); }}
                 aria-pressed={status === s.key}
-                className={cx('px-2.5 py-1 rounded text-[12.5px] font-medium transition-colors', status === s.key ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800')}
+                className={cx('h-full px-2.5 rounded text-[12.5px] font-medium whitespace-nowrap transition-colors', status === s.key ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800')}
               >
                 {s.label}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-3 lg:ml-auto">
+          <div className="flex items-center gap-2.5 shrink-0">
             <Select label="Type" value={cat} onChange={(v) => { setCat(v as 'ALL' | Category); setPage(1); }}>
               <option value="ALL">All types</option>
               {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{CATEGORIES[c].label}</option>)}
