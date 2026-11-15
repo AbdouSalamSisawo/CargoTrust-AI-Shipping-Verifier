@@ -108,6 +108,13 @@ export function layoutPdfPage(items: Item[]): string {
     else lines.push([it]);
   }
   const minX = Math.min(...items.map((i) => i.x));
+  // column anchors: x positions where items start on 3+ different lines (the
+  // value column of a label/value form, table columns). A long label can end
+  // right before the value column, so an anchor always starts a new cell.
+  const starts = new Map<number, number>();
+  for (const line of lines) for (const it of line) if (it.x > minX + 5) starts.set(Math.round(it.x), (starts.get(Math.round(it.x)) ?? 0) + 1);
+  const anchors = [...starts].filter(([, n]) => n >= 3).map(([x]) => x);
+  const atAnchor = (x: number) => anchors.some((a) => Math.abs(a - x) <= 1.5);
   const out: string[] = [];
   for (const line of lines) {
     line.sort((a, b) => a.x - b.x);
@@ -116,7 +123,7 @@ export function layoutPdfPage(items: Item[]): string {
     let end = -Infinity;
     for (const it of line) {
       const gap = it.x - end;
-      if (cells.length && gap < 12) cells[cells.length - 1].s += (gap > 1.5 ? ' ' : '') + it.s;
+      if (cells.length && gap < 12 && !(atAnchor(it.x) && gap > -1)) cells[cells.length - 1].s += (gap > 1.5 ? ' ' : '') + it.s;
       else cells.push({ x: it.x, s: it.s });
       end = it.x + it.w;
     }
@@ -147,6 +154,14 @@ async function getOcrWorker(): Promise<TessWorker> {
     })();
   }
   return workerPromise;
+}
+
+/** Release the OCR worker (lets CLI processes exit). */
+export async function shutdownReaders(): Promise<void> {
+  if (!workerPromise) return;
+  const w = (await workerPromise) as unknown as { terminate: () => Promise<void> };
+  workerPromise = null;
+  await w.terminate();
 }
 
 async function ocrPdf(doc: { numPages: number; getPage: (n: number) => Promise<unknown> }) {

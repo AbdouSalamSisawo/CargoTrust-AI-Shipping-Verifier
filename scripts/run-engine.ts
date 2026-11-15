@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadInbox, readAttachment } from '@/lib/dataset';
 import { processEmail } from '@/lib/engine/pipeline';
+import { shutdownReaders } from '@/lib/engine/readers';
 import type { ProcessedEmail } from '@/lib/types';
 
 async function main() {
@@ -46,6 +47,7 @@ async function main() {
   console.log('category', tally('category'));
   console.log('status  ', tally('status'));
   console.log('reason  ', tally('reviewReason'));
+  await shutdownReaders();
 }
 
 main().catch((e) => {
