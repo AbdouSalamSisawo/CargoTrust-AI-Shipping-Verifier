@@ -74,6 +74,19 @@ export function fieldForLabel(rawLabel: string, fuzzy = false): FieldKey | null 
   return null;
 }
 
+/**
+ * OCR loses or mangles separators ("Gross Weight 128544 KG", "Shipper. APRIL…").
+ * Try word-prefix splits and keep the longest prefix that is a known label.
+ */
+function ocrSplit(line: string): [string, string, string] | null {
+  const words = line.trim().split(/\s+/);
+  for (let n = Math.min(4, words.length - 1); n >= 1; n--) {
+    const label = words.slice(0, n).join(' ').replace(/[:;.,]+$/, '');
+    if (fieldForLabel(label, true)) return [line, label, words.slice(n).join(' ').replace(/^[:;.,]\s*/, '')];
+  }
+  return null;
+}
+
 /** Split canonical text into label blocks (label line + indented continuations). */
 export function parseBlocks(text: string, ocr = false): { blocks: Block[]; lines: string[] } {
   const lines = text.split('\n');
@@ -86,9 +99,7 @@ export function parseBlocks(text: string, ocr = false): { blocks: Block[]; lines
       return;
     }
     // OCR drops colons: "Containers 6 x 40'HC", "Gross Weight 128544 KG"
-    const m =
-      line.match(/^([^:|]{1,70}?)\s*:\s*(.*)$/) ||
-      (ocr ? line.match(/^([A-Za-z][A-Za-z ]{2,30}?)\s*[;.]\s+(\S.*)$/) || line.match(/^([A-Za-z][A-Za-z ]{2,30}?)\s+(\S.*)$/) : null);
+    const m = (ocr ? ocrSplit(line) : null) || line.match(/^([^:|]{1,70}?)\s*:\s*(.*)$/);
     if (m && !/\|/.test(line)) {
       cur = { label: m[1].trim(), first: m[2].trim(), lines: [], source: line.trim(), index };
       blocks.push(cur);

@@ -1,99 +1,114 @@
 /**
- * Value normalizers — canonicalize the messy ways the same shipment fact is
- * written across documents (legal suffixes, LOCODE vs plain names, kg vs MT).
- * Comparison of numerics is always exact on the parsed value, never fuzzy.
+ * Value normalizers — decide when two differently-written values are the SAME
+ * fact, without ever letting a real difference through.
+ *
+ * Parties: exact on the legal name after formatting is removed. Punctuation,
+ *   case, "&"/"AND" and legal-form spellings (LTD/LIMITED, CO/COMPANY) are
+ *   formatting. A different or extra word is NOT — "APRIL FINE PAPER TRADING"
+ *   and "APRIL FINE PAPER TRADING (MIDDLE EAST) FZE" are different entities.
+ *   The address is not compared: documents legitimately omit it.
+ * Ports: the city must agree, and when both sides carry a UN/LOCODE the codes
+ *   must agree too (a planted trap keeps the code and swaps the city).
+ * Numbers: exact after unit conversion (MT → kg, lbs → kg). Never fuzzy.
  */
 
-const LEGAL_SUFFIXES = new Set([
-  'PTE', 'LTD', 'LIMITED', 'LLC', 'LLP', 'INC', 'INCORPORATED', 'CORP', 'CORPORATION',
-  'CO', 'COMPANY', 'SDN', 'BHD', 'BERHAD', 'GMBH', 'AG', 'SA', 'SAC', 'SAS', 'NV', 'BV',
-  'BVBA', 'AB', 'AS', 'OY', 'KFT', 'SPA', 'SRL', 'PVT', 'FZE', 'FZC', 'FZCO', 'DMCC',
-  'KK', 'PT', 'TBK', 'YK', 'THE', 'AND', 'OF', 'CO', 'KG', 'JP', 'UK', 'US',
-]);
+const LEGAL_FORMS: Record<string, string> = {
+  LIMITED: 'LTD', COMPANY: 'CO', CORPORATION: 'CORP', INCORPORATED: 'INC', PRIVATE: 'PVT',
+  BERHAD: 'BHD', PROPRIETARY: 'PTY', INTERNATIONAL: 'INTL', AND: '&',
+};
 
+const PLACEHOLDER = /^(tba|tbc|tbd|n\/?a|nil|none|null|pending|unknown|to be (advised|confirmed)|\?+|-+|x{3,}|\.{3,}|_+.*|.*_{3,}.*)$/i;
+
+export function isPlaceholder(v: string | null | undefined): boolean {
+  if (v == null) return true;
+  const t = v.trim();
+  return !t || PLACEHOLDER.test(t);
+}
+
+/** Uppercase, strip punctuation, canonical legal forms. */
 export function normalizeName(raw: string): string {
   return raw
     .toUpperCase()
+    .replace(/&/g, ' & ')
     .replace(/[^\p{L}\p{N}& ]+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => LEGAL_FORMS[t] ?? t)
+    .join(' ');
 }
 
-export function nameTokens(raw: string): string[] {
-  return normalizeName(raw)
-    .split(' ')
-    .filter((t) => t && t.length > 1 && !LEGAL_SUFFIXES.has(t));
+/** The party name — first line of the block, before any " | " address split. */
+export function partyName(raw: string): string {
+  return raw.split('\n')[0].split(/\s+\|\s+/)[0].trim();
 }
 
-/** Legal-name equality via core-token containment (handles "PTE LTD" vs "LTD"). */
-export function sameName(a?: string | null, b?: string | null): boolean {
+export function sameName(a?: string | null, b?: string | null, ocr = false): boolean {
   if (!a || !b) return false;
-  const na = normalizeName(a);
-  const nb = normalizeName(b);
+  const na = normalizeName(partyName(a));
+  const nb = normalizeName(partyName(b));
   if (na === nb) return true;
-  const ta = nameTokens(a);
-  const tb = nameTokens(b);
-  if (!ta.length || !tb.length) return false;
-  const sa = new Set(ta);
-  const sb = new Set(tb);
-  const inter = ta.filter((t) => sb.has(t)).length;
-  const min = Math.min(sa.size, sb.size);
-  const max = Math.max(sa.size, sb.size);
-  if (min > 0 && inter === min) return true; // token containment
-  return inter / max >= 0.8; // near-identical sets
+  // OCR drops and inserts spaces ("ALGURG" vs "AL GURG") — compare squashed
+  if (ocr) return na.replace(/\s/g, '') === nb.replace(/\s/g, '');
+  return false;
 }
 
-export interface ParsedPort { locode: string | null; name: string }
+export interface ParsedPort { locode: string | null; city: string; country: string; name: string }
 
-/** "PORT KLANG (WESTPORT), MALAYSIA (MYPKG)" → { locode: 'MYPKG', name: 'PORT KLANG (WESTPORT), MALAYSIA' } */
+/** "PORT KLANG (WESTPORT), MALAYSIA (MYPKG)" → { locode: MYPKG, city: PORT KLANG WESTPORT, country: MALAYSIA } */
 export function parsePort(raw: string): ParsedPort {
-  const m = raw.match(/\(\s*([A-Z]{5})\s*\)\s*$/);
-  const locode = m ? m[1] : null;
-  const name = (locode ? raw.replace(/\(\s*[A-Z]{5}\s*\)\s*$/, '') : raw)
-    .replace(/[()]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return { locode, name };
+  const s = raw.toUpperCase().trim();
+  const m = s.match(/\(\s*([A-Z]{2}\s?[A-Z0-9]{3})\s*\)\s*$/);
+  const locode = m ? m[1].replace(/\s/g, '') : null;
+  const name = (m ? s.slice(0, m.index) : s).trim().replace(/[,\s]+$/, '');
+  const [cityRaw, ...rest] = name.split(',');
+  const clean = (x: string) => x.replace(/[^A-Z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return { locode, city: clean(cityRaw), country: clean(rest.join(' ')), name };
 }
 
-export function samePort(a?: string | null, b?: string | null): boolean {
+export function samePort(a?: string | null, b?: string | null, ocr = false): boolean {
   if (!a || !b) return false;
   const pa = parsePort(a);
   const pb = parsePort(b);
-  const na = pa.name.toUpperCase();
-  const nb = pb.name.toUpperCase();
-  const nameOk = sameName(pa.name, pb.name) || na.includes(nb) || nb.includes(na);
-  if (pa.locode && pb.locode) {
-    // A matching LOCODE alone is not enough — the planted hard cases keep the
-    // code but change the city ("TUTICORIN, INDIA (KEMBA)"). Require the names
-    // to be compatible, or share at least one significant token.
-    if (pa.locode !== pb.locode) return false;
-    if (nameOk) return true;
-    const inter = nameTokens(pa.name).filter((t) => nameTokens(pb.name).includes(t));
-    return inter.length > 0;
-  }
-  return nameOk;
+  if (pa.locode && pb.locode && pa.locode !== pb.locode) return false;
+  const squash = (x: string) => x.replace(/[^A-Z0-9]/g, '');
+  const cityOk = ocr ? squash(pa.city) === squash(pb.city) : pa.city === pb.city || squash(pa.city) === squash(pb.city);
+  if (!cityOk) return false;
+  // country is optional ("SINGAPORE" vs "SINGAPORE, SINGAPORE") but may not conflict
+  if (pa.country && pb.country && squash(pa.country) !== squash(pb.country)) return false;
+  return true;
 }
 
-/** "21,577 KG" / "21.577 MT" / "48,000 LBS" → kilograms. */
+/** Locale-aware number: "21,577" / "21.577,50" (EU) / "21577.5". */
+function parseNumber(s: string): number | null {
+  const t = s.replace(/\s/g, '');
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) return parseFloat(t.replace(/\./g, '').replace(',', '.'));
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) return parseFloat(t.replace(/,/g, ''));
+  if (/^\d+([.,]\d+)?$/.test(t)) return parseFloat(t.replace(',', '.'));
+  return null;
+}
+
+/** "21,577 KG" / "21.577 MT" / "48,000 LBS" / "243588" → kilograms. */
 export function parseWeightKg(raw: string): number | null {
-  const flat = raw.replace(/,/g, '');
-  const m = flat.match(/([\d.]+)\s*(KGS?|KILOGRAMS?|MT|TONS?|TONNES?|LBS?)\b/i);
-  if (m) {
-    const v = parseFloat(m[1]);
-    const u = m[2].toUpperCase();
-    if (u.startsWith('K')) return v;
-    if (u === 'MT' || u.startsWith('TON')) return v * 1000;
-    if (u.startsWith('LB')) return v * 0.453592;
-  }
-  const bare = flat.match(/[\d.]+/);
-  return bare ? parseFloat(bare[0]) : null;
+  if (isPlaceholder(raw)) return null;
+  const s = raw.toUpperCase().replace(/(\d)\s+(?=\d{3}\b)/g, '$1');
+  const m = s.match(/(\d[\d.,]*)\s*(KGS?|KILOS?|KILOGRAMS?|MT|M\/T|TONS?|TONNES?|LBS?|POUNDS?)?/);
+  if (!m) return null;
+  const v = parseNumber(m[1]);
+  if (v == null) return null;
+  const u = m[2] || 'KG';
+  if (u.startsWith('K')) return v;
+  if (u === 'MT' || u === 'M/T' || u.startsWith('TON')) return v * 1000;
+  if (u.startsWith('LB') || u.startsWith('POUND')) return v * 0.45359237;
+  return v;
 }
 
-/** "3 x 40'HC" / "3 X 40HC" / "3" → container count (equipment kept for display only). */
+/** "3 x 40'HC" / "3 X 40HC" / "3" / "THREE (3)" → container count. */
 export function parseContainerCount(raw: string): number | null {
-  const m = raw.match(/(\d+)\s*[xX×]\s*\d/);
-  if (m) return parseInt(m[1], 10);
-  const bare = raw.match(/\d+/);
+  if (isPlaceholder(raw)) return null;
+  const x = raw.match(/(\d+)\s*[xX×*]\s*\d/);
+  if (x) return parseInt(x[1], 10);
+  const paren = raw.match(/\((\d+)\)/);
+  if (paren) return parseInt(paren[1], 10);
+  const bare = raw.match(/\b\d+\b/);
   return bare ? parseInt(bare[0], 10) : null;
 }

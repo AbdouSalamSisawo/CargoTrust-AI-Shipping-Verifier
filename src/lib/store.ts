@@ -31,9 +31,9 @@ async function buildFromDataset(): Promise<DBShape> {
   const reviews: Record<string, ReviewCase> = {};
   let seq = 0;
   for (const rec of inbox) {
-    const texts: Record<string, string | null> = {};
-    for (const p of rec.attachments) texts[p] = (await readAttachment(p)).text;
-    const processed = processEmail(rec, texts);
+    const reads: Record<string, Awaited<ReturnType<typeof readAttachment>>> = {};
+    for (const p of rec.attachments) reads[p] = await readAttachment(p);
+    const processed = processEmail(rec, reads);
     processed.seq = ++seq;
     emails[processed.id] = processed;
     if (processed.status === 'NEEDS_REVIEW') {

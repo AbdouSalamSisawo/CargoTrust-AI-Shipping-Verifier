@@ -16,8 +16,16 @@ export interface ExtractedDoc {
   raw: Partial<Record<FieldKey, string>>;
   lines: Partial<Record<FieldKey, string>>;
   missing: FieldKey[];
+  /** Fields whose value is a placeholder ("TBA", "____") rather than data. */
+  placeholders?: Partial<Record<FieldKey, string>>;
+  /** Fields derived rather than read from a label (e.g. counted from the container table). */
+  derived?: Partial<Record<FieldKey, string>>;
   completeness: number;
   docKind?: 'SI' | 'BL';
+  /** What the content says it is (SI, BL, INVOICE, PACKING_LIST, CERTIFICATE, UNKNOWN). */
+  detectedKind?: string;
+  /** How the text was obtained: text, pdf-text, pdf-ocr, docx, xlsx. */
+  method?: string;
 }
 
 export interface FieldRow {
@@ -36,6 +44,11 @@ export interface AttachmentInfo {
   kind: 'SI' | 'BL' | 'other';
   readable: boolean;
   size: number;
+  /** How the attachment was read: text, pdf-text, pdf-ocr, docx, xlsx, none. */
+  method?: string;
+  ocrConfidence?: number;
+  /** Why it could not be read. */
+  error?: string;
 }
 
 export interface ProcessedEmail {
@@ -52,6 +65,8 @@ export interface ProcessedEmail {
   decidedBy?: 'rule' | 'llm' | 'human';
   /** Document thread with no SI/BL yet — tracked, not escalated. */
   awaitingDocuments?: boolean;
+  /** Extra observations shown to the reviewer (e.g. swapped attachments). */
+  notes?: string[];
   confidence: number;
   status: Status;
   defectFields: FieldKey[];

@@ -1,20 +1,23 @@
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import type { EmailRecord } from './types';
-import { extractTextFromBinary } from './engine/binary';
+import { readDocument, type ReadResult } from './engine/readers';
 
 /**
  * Server-side access to the SDOC participant dataset that ships with this repo
  * (dataset/inbox/*.json + dataset/attachments/*). Mirrors loader.py semantics,
- * extended for the advanced stage: PDF (text layer), Excel and Word
- * attachments are parsed to text; image-only scans stay unreadable.
+ * extended for the advanced stage: every attachment — text, PDF (text layer or
+ * scanned → OCR), Word, Excel — goes through engine/readers.ts.
+ *
+ * Slow reads (OCR) are cached on disk by content hash in data/cache/.
  */
 const DATASET_DIR = path.join(process.cwd(), 'dataset');
+const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
+const READER_VERSION = 'r2';
 
 let inboxCache: EmailRecord[] | null = null;
-const textCache = new Map<string, { text: string | null; size: number }>();
-
-const PARSEABLE = new Set(['pdf', 'xlsx', 'xls', 'docx']);
+const readCache = new Map<string, ReadResult & { size: number }>();
 
 export async function loadInbox(): Promise<EmailRecord[]> {
   if (inboxCache) return inboxCache;
@@ -27,21 +30,39 @@ export async function loadInbox(): Promise<EmailRecord[]> {
   return records;
 }
 
-export async function readAttachment(relPath: string): Promise<{ text: string | null; size: number }> {
-  const hit = textCache.get(relPath);
+/** Read any attachment buffer, using the on-disk cache for expensive (OCR) reads. */
+export async function readBuffer(name: string, buf: Buffer): Promise<ReadResult> {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const hash = crypto.createHash('sha1').update(READER_VERSION).update(buf).digest('hex');
+  const cacheFile = path.join(CACHE_DIR, `${hash}.json`);
+  try {
+    return JSON.parse(await fs.readFile(cacheFile, 'utf8')) as ReadResult;
+  } catch {
+    /* not cached */
+  }
+  const res = await readDocument(ext, buf);
+  if (res.method === 'pdf-ocr') {
+    try {
+      await fs.mkdir(CACHE_DIR, { recursive: true });
+      await fs.writeFile(cacheFile, JSON.stringify(res));
+    } catch {
+      /* read-only filesystem: skip caching */
+    }
+  }
+  return res;
+}
+
+export async function readAttachment(relPath: string): Promise<ReadResult & { size: number }> {
+  const hit = readCache.get(relPath);
   if (hit) return hit;
+  let out: ReadResult & { size: number };
   try {
     const buf = await fs.readFile(path.join(DATASET_DIR, relPath));
-    const ext = (relPath.split('.').pop() || '').toLowerCase();
-    let text: string | null = null;
-    if (ext === 'txt') text = buf.toString('utf8');
-    else if (PARSEABLE.has(ext)) text = await extractTextFromBinary(ext, buf);
-    const out = { text, size: buf.length };
-    textCache.set(relPath, out);
-    return out;
-  } catch {
-    const out = { text: null, size: 0 };
-    textCache.set(relPath, out);
-    return out;
+    out = { ...(await readBuffer(relPath, buf)), size: buf.length };
+  } catch (e) {
+    out = { text: null, method: 'none', error: 'attachment not found in the dataset', size: 0 };
+    void e;
   }
+  readCache.set(relPath, out);
+  return out;
 }

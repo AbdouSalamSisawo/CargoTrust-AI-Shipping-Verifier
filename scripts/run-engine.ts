@@ -16,9 +16,9 @@ async function main() {
   const inbox = await loadInbox();
   const results: Record<string, ProcessedEmail> = {};
   for (const rec of inbox) {
-    const texts: Record<string, string | null> = {};
-    for (const p of rec.attachments) texts[p] = (await readAttachment(p)).text;
-    results[rec.email_id] = processEmail(rec, texts);
+    const reads: Record<string, Awaited<ReturnType<typeof readAttachment>>> = {};
+    for (const p of rec.attachments) reads[p] = await readAttachment(p);
+    results[rec.email_id] = processEmail(rec, reads);
   }
   const submission: Record<string, unknown> = {};
   for (const id of Object.keys(results).sort()) {
