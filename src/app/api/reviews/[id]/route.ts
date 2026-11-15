@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { mutate } from '@/lib/store';
+import { mutate, audit } from '@/lib/store';
+import { guarded } from '@/lib/auth';
 import { compareDocs } from '@/lib/engine/compare';
 import { fieldLabel, FIELD_KEYS, type FieldKey } from '@/data/taxonomy';
 import type { ExtractedDoc } from '@/lib/types';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 type EditMap = Record<string, { si?: string; bl?: string }>;
 
 /** Resolve a review case: approve / reject / correct-and-approve. */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export const POST = guarded('operator', async (user, req: NextRequest, { params }: { params: { id: string } }) => {
   const body = (await req.json().catch(() => ({}))) as {
     action?: 'approve' | 'correct' | 'reject';
     note?: string;
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           bl: email.extracted!.bl.found[f] ? email.extracted!.bl.raw[f] ?? null : null,
         }));
         kase.summary = email.summary;
+        audit(db, user, 'review.corrected', email.id, `Values corrected; still missing ${[...stillMissing].map(fieldLabel).join(', ')}`);
         return { ok: true, status: email.status, stillOpen: true } as const;
       }
       const cmp = compareDocs(email.extracted.si, email.extracted.bl);
@@ -83,18 +85,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       email.summary = email.hasDefect
         ? `Reviewer-corrected — ${cmp.defectFields.length} of 7 fields differ: ${cmp.defectFields.map(fieldLabel).join(', ')}.`
         : 'Reviewer confirmed the values — no mismatch detected.';
-      email.reviewed = { action: 'correct', note: body.note };
+      email.reviewed = { action: 'correct', note: body.note, by: user.name, at: new Date().toISOString() };
       kase.status = 'resolved';
-      kase.resolution = { action: 'correct', note: body.note, updatedStatus: email.status };
+      kase.resolution = { action: 'correct', note: body.note, updatedStatus: email.status, by: user.name, at: new Date().toISOString() };
+      audit(db, user, 'review.corrected', email.id, `Resolved → ${email.status}${body.note ? ` — ${body.note}` : ''}`);
       return { ok: true, status: email.status } as const;
     }
 
     // approve / reject — the escalation is acknowledged; the email stays NEEDS_REVIEW
-    email.reviewed = { action, note: body.note };
+    email.reviewed = { action, note: body.note, by: user.name, at: new Date().toISOString() };
     kase.status = 'resolved';
-    kase.resolution = { action, note: body.note, updatedStatus: 'NEEDS_REVIEW' };
+    kase.resolution = { action, note: body.note, updatedStatus: 'NEEDS_REVIEW', by: user.name, at: new Date().toISOString() };
+    audit(db, user, action === 'approve' ? 'review.approved' : 'review.rejected', email.id, body.note || undefined);
     return { ok: true, status: email.status } as const;
   });
 
   return NextResponse.json(out);
-}
+});

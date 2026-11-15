@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getDB } from '@/lib/store';
+import { guarded } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export const GET = guarded('viewer', async () => {
   const db = await getDB();
   const cases = Object.values(db.reviews)
-    .sort((a, b) => a.id.localeCompare(b.id))
+    .sort((a, b) => (db.emails[b.emailId]?.source === 'sample' ? 0 : 1) - (db.emails[a.emailId]?.source === 'sample' ? 0 : 1) || a.id.localeCompare(b.id))
     .map((c) => {
       const e = db.emails[c.emailId];
       return {
@@ -25,4 +26,4 @@ export async function GET() {
       };
     });
   return NextResponse.json({ open: cases.filter((c) => c.status === 'open'), resolved: cases.filter((c) => c.status === 'resolved') });
-}
+});
